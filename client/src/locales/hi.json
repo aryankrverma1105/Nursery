@@ -1,0 +1,95 @@
+{
+  "common": {
+    "appName": "डीप रूट फार्म्स",
+    "sampleData": "[नमूना डेटा]",
+    "loading": "लोड हो रहा है...",
+    "save": "सुरक्षित करें",
+    "saved": "सफल",
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "delete": "हटाएं",
+    "back": "पीछे",
+    "next": "आगे",
+    "search": "खोजें...",
+    "filter": "फ़िल्टर",
+    "all": "सभी",
+    "viewDetails": "विवरण देखें",
+    "enquire": "व्हाट्सएप पर पूछें",
+    "sendEnquiry": "पूछताछ भेजें",
+    "priceOnRequest": "अनुरोध पर मूल्य",
+    "units": "इकाइयां",
+    "plants": "पौधे",
+    "status": {
+      "inStock": "उपलब्ध है",
+      "limited": "सीमित स्टॉक",
+      "outOfStock": "स्टॉक समाप्त",
+      "comingSoon": "जल्द आ रहा है",
+      "quarantined": "क्वारंटाइन में",
+      "active": "सक्रिय",
+      "curing": "क्योरिंग में",
+      "ready": "बिक्री के लिए तैयार"
+    }
+  },
+  "nav": {
+    "home": "होम",
+    "about": "हमारे बारे में",
+    "products": "कैटलॉग",
+    "gallery": "गैलरी",
+    "contact": "संपर्क",
+    "login": "स्टाफ लॉगिन",
+    "logout": "लॉगआउट",
+    "dashboard": "डैशबोर्ड",
+    "inventory": "इन्वेंट्री",
+    "sales": "बिक्री",
+    "traceability": "ट्रेसेबिलिटी",
+    "cms": "वेबसाइट प्रबंधन",
+    "settings": "सेटिंग्स"
+  },
+  "appNav": {
+    "home": "होम",
+    "add": "नया जोड़ें",
+    "stock": "स्टॉक",
+    "more": "अन्य"
+  },
+  "auth": {
+    "loginTitle": "नर्सरी स्टाफ पोर्टल",
+    "loginSubtitle": "इन्वेंट्री, बिक्री और संचालन के लिए लॉगिन करें।",
+    "email": "ईमेल पता",
+    "password": "पासवर्ड",
+    "signIn": "साइन इन करें",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "resetPassword": "पासवर्ड रीसेट करें",
+    "newPassword": "नया पासवर्ड",
+    "confirmPassword": "पासवर्ड की पुष्टि करें",
+    "changePasswordRequired": "जारी रखने से पहले कृपया एक नया पासवर्ड सेट करें।",
+    "demoCredentials": "डेमो खाते: admin@nursery.local (Admin@12345), supervisor@nursery.local (Supervisor@12345), worker@nursery.local (Worker@12345)"
+  },
+  "wizards": {
+    "step": "चरण",
+    "of": "का",
+    "recordSowing": "बुवाई दर्ज करें",
+    "recordGrafting": "कलम (ग्राफ्टिंग) दर्ज करें",
+    "curingCheck": "क्योरिंग और मृत्यु दर जांच",
+    "promoteReady": "बिक्री के लिए तैयार करें",
+    "recordSale": "पौधों की बिक्री दर्ज करें",
+    "pickSeedLot": "बीज लॉट चुनें",
+    "enterQuantity": "संख्या दर्ज करें",
+    "pickRootstock": "रूटस्टॉक बैच चुनें",
+    "pickScion": "सायन (कलम) बैच चुनें",
+    "pickTechnician": "कारीगर का नाम",
+    "confirmDetails": "पुष्टि करें और सहेजें",
+    "tapToIncrement": "+ या - दबाकर संख्या बदलें",
+    "successSaved": "सफलतापूर्वक सुरक्षित किया गया!"
+  },
+  "trace": {
+    "title": "वंशवृक्ष और बैच ट्रेसेबिलिटी",
+    "enterCode": "सीरियल कोड या बैच आईडी दर्ज करें",
+    "findButton": "ट्रेस करें",
+    "lineageTree": "वंशवृक्ष इतिहास",
+    "motherTree": "मातृ वृक्ष (मदर ट्री)",
+    "rootstockOrigin": "रूटस्टॉक अंकुरण",
+    "curingHistory": "क्योरिंग और जीवित रहने की दर",
+    "quarantineAlert": "चेतावनी: यह बैच वर्तमान में क्वारंटाइन में है।"
+  }
+}
+

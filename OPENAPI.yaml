@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Green Valley Horticulture Nursery Management API
+  version: 1.0.0
+  description: >
+    Production REST API supporting public botanical catalogue browsing,
+    mobile-first field operations, double-entry inventory ledger, and batch pedigree traceability.
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+
+paths:
+  /auth/login:
+    post:
+      summary: Staff Authentication
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful with JWT access token and HTTP-only refresh cookie
+        '401':
+          description: Invalid credentials
+        '403':
+          description: Account locked due to brute force protection
+
+  /public/homepage:
+    get:
+      summary: Fetch Dynamic Homepage Sections & Active Banners
+      tags: [Public Catalogue]
+      responses:
+        '200':
+          description: Ordered CMS sections, non-expired banners, and featured cultivars
+
+  /public/products:
+    get:
+      summary: Search Catalogue Products
+      tags: [Public Catalogue]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated product list with derived availability (In Stock, Limited, Out of Stock)
+
+  /public/products/{slug}:
+    get:
+      summary: Product Details & Specifications
+      tags: [Public Catalogue]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product specifications, image gallery, and direct wa.me WhatsApp link
+
+  /public/enquiry:
+    post:
+      summary: Submit Public Horticultural Enquiry
+      tags: [Public Catalogue]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone, message]
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                email: { type: string }
+                subject: { type: string }
+                message: { type: string }
+                botField: { type: string, description: 'Honeypot trap' }
+      responses:
+        '200':
+          description: Enquiry recorded
+
+  /inventory/sowing:
+    post:
+      summary: Record Sowing Wizard
+      tags: [Nursery Inventory]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seed_lot_id, seeds_sown, sowing_date]
+              properties:
+                seed_lot_id: { type: integer }
+                seeds_sown: { type: integer }
+                sowing_date: { type: string, format: date }
+                location: { type: string }
+      responses:
+        '201':
+          description: Rootstock batch and positive ledger movement created
+
+  /inventory/grafting:
+    post:
+      summary: Record Grafting Operation
+      tags: [Nursery Inventory]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rootstock_batch_id, scion_batch_id, quantity_grafted, grafting_date, technician_name]
+              properties:
+                rootstock_batch_id: { type: integer }
+                scion_batch_id: { type: integer }
+                quantity_grafted: { type: integer }
+                grafting_date: { type: string, format: date }
+                technician_name: { type: string }
+                curing_days: { type: integer, default: 21 }
+      responses:
+        '201':
+          description: Grafted batch created and parent balances deducted in ledger
+
+  /sales/orders:
+    post:
+      summary: Record Plant Sale & Issue Invoice
+      tags: [Sales & Invoices]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id, order_date, items, payment_mode]
+              properties:
+                customer_id: { type: integer }
+                order_date: { type: string, format: date }
+                payment_mode: { type: string, enum: [CASH, UPI, BANK_TRANSFER, CHEQUE, CREDIT] }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [batch_id, quantity, unit_price]
+                    properties:
+                      batch_id: { type: integer }
+                      quantity: { type: integer }
+                      unit_price: { type: number }
+      responses:
+        '201':
+          description: Order created, sequential invoice generated, batch stock deducted
+
+  /trace/{code}:
+    get:
+      summary: Resolve Pedigree Lineage Graph by Code
+      tags: [Traceability]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full pedigree graph including rootstock, scion, donor mother trees, and descendants
+
+  /trace/quarantine:
+    post:
+      summary: Quarantine Batch & Cascade Downstream
+      tags: [Traceability]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batch_id, reason]
+              properties:
+                batch_id: { type: integer }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Batch and all descendants quarantined and removed from public catalogue availability
+

@@ -1,0 +1,95 @@
+{
+  "common": {
+    "appName": "Deep Root Farms",
+    "sampleData": "[SAMPLE DATA]",
+    "loading": "Loading...",
+    "save": "Save",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search...",
+    "filter": "Filter",
+    "all": "All",
+    "viewDetails": "View Details",
+    "enquire": "Enquire on WhatsApp",
+    "sendEnquiry": "Send Enquiry",
+    "priceOnRequest": "Price on Request",
+    "units": "units",
+    "plants": "plants",
+    "status": {
+      "inStock": "In Stock",
+      "limited": "Limited Stock",
+      "outOfStock": "Out of Stock",
+      "comingSoon": "Coming Soon",
+      "quarantined": "Quarantined",
+      "active": "Active",
+      "curing": "Curing",
+      "ready": "Ready for Sale"
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "about": "About Us",
+    "products": "Catalogue",
+    "gallery": "Gallery",
+    "contact": "Contact",
+    "login": "Staff Login",
+    "logout": "Logout",
+    "dashboard": "Dashboard",
+    "inventory": "Inventory",
+    "sales": "Sales",
+    "traceability": "Traceability",
+    "cms": "Website CMS",
+    "settings": "Settings"
+  },
+  "appNav": {
+    "home": "Home",
+    "add": "Add New",
+    "stock": "Stock",
+    "more": "More"
+  },
+  "auth": {
+    "loginTitle": "Nursery Staff Portal",
+    "loginSubtitle": "Sign in to access inventory, sales, and operations.",
+    "email": "Email Address",
+    "password": "Password",
+    "signIn": "Sign In",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "changePasswordRequired": "Please set a new password before continuing.",
+    "demoCredentials": "Demo accounts: admin@nursery.local (Admin@12345), supervisor@nursery.local (Supervisor@12345), worker@nursery.local (Worker@12345)"
+  },
+  "wizards": {
+    "step": "Step",
+    "of": "of",
+    "recordSowing": "Record Sowing",
+    "recordGrafting": "Record Grafting",
+    "curingCheck": "Curing & Mortality Log",
+    "promoteReady": "Promote to Ready for Sale",
+    "recordSale": "Record Plant Sale",
+    "pickSeedLot": "Select Seed Lot",
+    "enterQuantity": "Enter Quantity",
+    "pickRootstock": "Select Rootstock Batch",
+    "pickScion": "Select Scion Batch",
+    "pickTechnician": "Technician Name",
+    "confirmDetails": "Confirm & Save",
+    "tapToIncrement": "Tap + or - to adjust quantity",
+    "successSaved": "Saved successfully!"
+  },
+  "trace": {
+    "title": "Pedigree & Batch Traceability",
+    "enterCode": "Enter serial code or batch ID",
+    "findButton": "Trace Batch",
+    "lineageTree": "Lineage History",
+    "motherTree": "Mother Tree Donor",
+    "rootstockOrigin": "Rootstock Germination",
+    "curingHistory": "Curing & Survival Rate",
+    "quarantineAlert": "THIS BATCH IS CURRENTLY UNDER QUARANTINE."
+  }
+}
+
