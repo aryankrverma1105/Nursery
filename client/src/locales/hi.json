@@ -90,6 +90,18 @@
     "rootstockOrigin": "रूटस्टॉक अंकुरण",
     "curingHistory": "क्योरिंग और जीवित रहने की दर",
     "quarantineAlert": "चेतावनी: यह बैच वर्तमान में क्वारंटाइन में है।"
+  },
+  "workflow": {
+    "dashboard": "डैशबोर्ड",
+    "sowing": "बीज बुवाई (Sowing)",
+    "germination": "अंकुरण (Germination)",
+    "plantGrowth": "पौध वृद्धि (Growth)",
+    "grafting": "कलम बांधना (Grafting)",
+    "curing": "क्योरिंग (Curing)",
+    "readyForSale": "बिक्री योग्य (Ready for Sale)",
+    "selling": "बिक्री (Selling)",
+    "traceability": "ट्रेसेबिलिटी (Traceability)",
+    "reports": "रिपोर्ट्स (Reports)"
   }
 }
 

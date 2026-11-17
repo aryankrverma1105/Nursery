@@ -166,7 +166,7 @@ describe('Nursery Management Platform - Full API Integration Suite', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.batch.serial_number).toMatch(/^RS-\d{4}-\d{5}$/);
+      expect(res.body.batch.serial_number).toMatch(/^(RS|ROOT)-\d{4}-\d{4,5}$/);
       newRootstockId = res.body.batch.batchId;
 
       // Verify double-entry ledger movement
@@ -193,7 +193,7 @@ describe('Nursery Management Platform - Full API Integration Suite', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.batch.serial_number).toMatch(/^SC-\d{4}-\d{5}$/);
+      expect(res.body.batch.serial_number).toMatch(/^(SC|SCION)-\d{4}-\d{4,5}$/);
       newScionId = res.body.batch.batchId;
 
       const movement = await db('inventory_movements').where({ batch_id: newScionId }).first();
@@ -217,7 +217,7 @@ describe('Nursery Management Platform - Full API Integration Suite', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.batch.serial_number).toMatch(/^GR-\d{4}-\d{5}$/);
+      expect(res.body.batch.serial_number).toMatch(/^(GR|GRAFT)-\d{4}-\d{4,5}$/);
       newGraftedBatchId = res.body.batch.batchId;
 
       // Verify Rootstock and Scion balances were deducted by 60
@@ -276,7 +276,7 @@ describe('Nursery Management Platform - Full API Integration Suite', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.batch.serial_number).toMatch(/^RFS-\d{4}-\d{5}$/);
+      expect(res.body.batch.serial_number).toMatch(/^(RFS)-\d{4}-\d{4,5}$/);
       newReadyBatchId = res.body.batch.rfsId;
 
       // Source batch balance reduced
@@ -316,7 +316,7 @@ describe('Nursery Management Platform - Full API Integration Suite', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.order.invoice_number).toMatch(/^SALE-\d{4}-\d{5}$/);
+      expect(res.body.order.invoice_number).toMatch(/^(SALE)-\d{4}-\d{4,5}$/);
 
       // Verify stock deducted
       const updated = await db('batches').where({ id: readyBatch.id }).first();

@@ -9,7 +9,9 @@ import { invalidatePublicCache } from './public.routes.js';
 const router = Router();
 router.use(requireAuth);
 
-// 1. GET METADATA (Suppliers, Seed Lots, Mother Trees)
+// ==========================================
+// 1. METADATA: Suppliers, Seed Lots, Mother Trees
+// ==========================================
 router.get('/suppliers', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const suppliers = await db('suppliers').where({ is_active: true }).orderBy('name', 'asc');
@@ -51,30 +53,17 @@ router.get('/seed-lots', async (req: Request, res: Response, next: NextFunction)
 
 router.post('/seed-lots', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { supplier_id, plant_variety, purchase_date, initial_weight_grams, seeds_count, germination_rate_tested, notes } = req.body;
-
-    const prefix = await identifierService.getPrefixForType('SEED_LOT');
-    const seq = await identifierService.getNextSequence(`SEED_LOT_${new Date().getFullYear()}`);
-    const template = await identifierService.getSerialTemplate();
-    const lot_code = identifierService.getStrategy('SERIAL').format(prefix, new Date().getFullYear(), seq, template);
-
+    const { lot_code, supplier_id, plant_variety, purchase_date, seeds_count, notes } = req.body;
     const [inserted] = await db('seed_lots').insert({
-      lot_code,
-      supplier_id,
+      lot_code: lot_code || `LOT-${Date.now().toString().slice(-6)}`,
+      supplier_id: supplier_id || null,
       plant_variety,
-      purchase_date,
-      initial_weight_grams: initial_weight_grams || 0,
+      purchase_date: purchase_date || new Date().toISOString().split('T')[0],
       seeds_count: seeds_count || 0,
-      germination_rate_tested: germination_rate_tested || 0,
       notes,
       created_at: db.fn.now(),
     }).returning('*');
-
-    const seedLotId = typeof inserted === 'object' ? inserted.id : inserted;
-
-    await identifierService.generate('SEED_LOT', seedLotId, { customPrefix: prefix });
-
-    return res.status(201).json({ seedLot: inserted, lot_code });
+    return res.status(201).json({ seedLot: inserted });
   } catch (err) {
     next(err);
   }
@@ -89,25 +78,9 @@ router.get('/mother-trees', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
-router.post('/mother-trees', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { tree_code, plant_variety, location_block, age_years, health_status, notes } = req.body;
-    const [inserted] = await db('mother_trees').insert({
-      tree_code,
-      plant_variety,
-      location_block,
-      age_years: age_years || 1,
-      health_status: health_status || 'HEALTHY',
-      notes,
-      created_at: db.fn.now(),
-    }).returning('*');
-    return res.status(201).json({ motherTree: inserted });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 2. GET BATCHES (with optional filtering by batch_type and status)
+// ==========================================
+// 2. GENERAL BATCHES LIST & DISCARD
+// ==========================================
 router.get('/batches', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { type, status, includeDiscarded } = req.query;
@@ -131,535 +104,6 @@ router.get('/batches', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-// 3. SOWING WIZARD: Creates ROOTSTOCK Batch + Sowing Record + Ledger Movement
-const SowingSchema = z.object({
-  seed_lot_id: z.number(),
-  seeds_sown: z.number().positive(),
-  sowing_date: z.string(),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/sowing', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = SowingSchema.parse(req.body);
-
-    const seedLot = await db('seed_lots').where({ id: data.seed_lot_id }).first();
-    if (!seedLot) {
-      return res.status(404).json({ error: 'Seed lot not found.' });
-    }
-
-    const result = await db.transaction(async (trx) => {
-      // 1. Create rootstock batch
-      const year = new Date().getFullYear();
-      const prefix = await identifierService.getPrefixForType('ROOTSTOCK');
-      const seq = await identifierService.getNextSequence(`RS_${year}`);
-      const template = await identifierService.getSerialTemplate();
-      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
-
-      const [batchIdObj] = await trx('batches').insert({
-        batch_type: 'ROOTSTOCK',
-        serial_number,
-        plant_variety: seedLot.plant_variety,
-        status: 'ACTIVE',
-        initial_quantity: data.seeds_sown,
-        current_quantity: data.seeds_sown,
-        location: data.location || 'Poly-tunnel Rootstock Bed',
-        notes: data.notes || `Sown from ${seedLot.lot_code}`,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      }).returning('id');
-
-      const batchId = typeof batchIdObj === 'object' ? batchIdObj.id : batchIdObj;
-
-      // 2. Insert into identifiers table
-      await trx('identifiers').insert({
-        entity_type: 'BATCH',
-        entity_id: batchId,
-        scheme: 'SERIAL',
-        value: serial_number,
-        status: 'ACTIVE',
-        issued_at: db.fn.now(),
-      });
-
-      // 3. Create sowing record
-      await trx('sowing_records').insert({
-        batch_id: batchId,
-        seed_lot_id: seedLot.id,
-        seeds_sown: data.seeds_sown,
-        sowing_date: data.sowing_date,
-        germination_count: 0,
-        live_count: data.seeds_sown,
-        mortality_count: 0,
-        notes: data.notes,
-      });
-
-      // 4. Double-entry ledger movement
-      await trx('inventory_movements').insert({
-        batch_id: batchId,
-        movement_type: 'SOWING',
-        quantity_change: data.seeds_sown,
-        resulting_balance: data.seeds_sown,
-        reference_type: 'SOWING',
-        notes: `Initial seed sowing of ${data.seeds_sown} seeds`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      return { batchId, serial_number, quantity: data.seeds_sown };
-    });
-
-    await AuditService.log({
-      userId: req.user!.id,
-      action: 'RECORD_SOWING',
-      entityType: 'BATCH',
-      entityId: result.batchId,
-      newValues: result,
-      ipAddress: req.ip,
-    });
-
-    return res.status(201).json({
-      message: `Saved. ${result.quantity} rootstock seedlings added to batch ${result.serial_number}`,
-      batch: result,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 4. SCION HARVEST WIZARD: Creates SCION Batch + Scion Harvest Record + Ledger Movement
-const ScionHarvestSchema = z.object({
-  mother_tree_id: z.number(),
-  cuttings_harvested: z.number().positive(),
-  harvest_date: z.string(),
-  technician_name: z.string().min(2),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/scion-harvest', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = ScionHarvestSchema.parse(req.body);
-    const motherTree = await db('mother_trees').where({ id: data.mother_tree_id }).first();
-    if (!motherTree) {
-      return res.status(404).json({ error: 'Mother tree donor not found.' });
-    }
-
-    const result = await db.transaction(async (trx) => {
-      const year = new Date().getFullYear();
-      const prefix = await identifierService.getPrefixForType('SCION');
-      const seq = await identifierService.getNextSequence(`SC_${year}`);
-      const template = await identifierService.getSerialTemplate();
-      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
-
-      const [batchIdObj] = await trx('batches').insert({
-        batch_type: 'SCION',
-        serial_number,
-        plant_variety: motherTree.plant_variety,
-        status: 'ACTIVE',
-        initial_quantity: data.cuttings_harvested,
-        current_quantity: data.cuttings_harvested,
-        location: data.location || 'Cold Mist Storage',
-        notes: data.notes || `Scion harvested from mother tree ${motherTree.tree_code}`,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      }).returning('id');
-
-      const batchId = typeof batchIdObj === 'object' ? batchIdObj.id : batchIdObj;
-
-      await trx('identifiers').insert({
-        entity_type: 'BATCH',
-        entity_id: batchId,
-        scheme: 'SERIAL',
-        value: serial_number,
-        status: 'ACTIVE',
-        issued_at: db.fn.now(),
-      });
-
-      await trx('scion_harvest_records').insert({
-        batch_id: batchId,
-        mother_tree_id: motherTree.id,
-        harvest_date: data.harvest_date,
-        cuttings_harvested: data.cuttings_harvested,
-        technician_name: data.technician_name,
-        notes: data.notes,
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: batchId,
-        movement_type: 'SCION_HARVEST',
-        quantity_change: data.cuttings_harvested,
-        resulting_balance: data.cuttings_harvested,
-        reference_type: 'SCION_HARVEST',
-        notes: `Harvested ${data.cuttings_harvested} budwood cuttings`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      return { batchId, serial_number, quantity: data.cuttings_harvested };
-    });
-
-    return res.status(201).json({
-      message: `Saved. ${result.quantity} scion cuttings logged in batch ${result.serial_number}`,
-      batch: result,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 5. GRAFTING WIZARD: Rootstock + Scion -> GRAFTED Batch with Lineage & Ledger safety
-const GraftingSchema = z.object({
-  rootstock_batch_id: z.number(),
-  scion_batch_id: z.number(),
-  quantity_grafted: z.number().positive(),
-  grafting_date: z.string(),
-  technician_name: z.string().min(2),
-  variety_name: z.string().optional(),
-  curing_days: z.number().default(21),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/grafting', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = GraftingSchema.parse(req.body);
-
-    const result = await db.transaction(async (trx) => {
-      // Check rootstock batch balance with row lock
-      const rootstock = await trx('batches').where({ id: data.rootstock_batch_id }).forUpdate().first();
-      if (!rootstock) throw new Error('Rootstock batch not found.');
-      if (rootstock.current_quantity < data.quantity_grafted) {
-        throw new Error(`Insufficient rootstock seedlings! Available: ${rootstock.current_quantity}, requested: ${data.quantity_grafted}`);
-      }
-
-      // Check scion batch balance with row lock
-      const scion = await trx('batches').where({ id: data.scion_batch_id }).forUpdate().first();
-      if (!scion) throw new Error('Scion batch not found.');
-      if (scion.current_quantity < data.quantity_grafted) {
-        throw new Error(`Insufficient scion cuttings! Available: ${scion.current_quantity}, requested: ${data.quantity_grafted}`);
-      }
-
-      // Deduct from rootstock batch
-      const newRootstockBalance = rootstock.current_quantity - data.quantity_grafted;
-      await trx('batches').where({ id: rootstock.id }).update({
-        current_quantity: newRootstockBalance,
-        status: newRootstockBalance === 0 ? 'SOLD_OUT' : rootstock.status,
-        updated_at: db.fn.now(),
-      });
-      await trx('inventory_movements').insert({
-        batch_id: rootstock.id,
-        movement_type: 'GRAFTING_IN',
-        quantity_change: -data.quantity_grafted,
-        resulting_balance: newRootstockBalance,
-        reference_type: 'GRAFTING',
-        notes: `Consumed for grafting batch`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // Deduct from scion batch
-      const newScionBalance = scion.current_quantity - data.quantity_grafted;
-      await trx('batches').where({ id: scion.id }).update({
-        current_quantity: newScionBalance,
-        status: newScionBalance === 0 ? 'SOLD_OUT' : scion.status,
-        updated_at: db.fn.now(),
-      });
-      await trx('inventory_movements').insert({
-        batch_id: scion.id,
-        movement_type: 'GRAFTING_IN',
-        quantity_change: -data.quantity_grafted,
-        resulting_balance: newScionBalance,
-        reference_type: 'GRAFTING',
-        notes: `Consumed for grafting batch`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // Generate Grafted Batch
-      const year = new Date().getFullYear();
-      const prefix = await identifierService.getPrefixForType('GRAFTED');
-      const seq = await identifierService.getNextSequence(`GR_${year}`);
-      const template = await identifierService.getSerialTemplate();
-      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
-
-      const variety = data.variety_name || `${scion.plant_variety} on ${rootstock.plant_variety}`;
-
-      const [batchIdObj] = await trx('batches').insert({
-        batch_type: 'GRAFTED',
-        serial_number,
-        plant_variety: variety,
-        status: 'CURING',
-        initial_quantity: data.quantity_grafted,
-        current_quantity: data.quantity_grafted,
-        location: data.location || 'Mist Chamber Curing Area',
-        notes: data.notes || `Grafted by ${data.technician_name}`,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      }).returning('id');
-
-      const batchId = typeof batchIdObj === 'object' ? batchIdObj.id : batchIdObj;
-
-      await trx('identifiers').insert({
-        entity_type: 'BATCH',
-        entity_id: batchId,
-        scheme: 'SERIAL',
-        value: serial_number,
-        status: 'ACTIVE',
-        issued_at: db.fn.now(),
-      });
-
-      // Never destroy lineage: Record Parent-Child relationships
-      await trx('batch_lineage').insert([
-        {
-          batch_id: batchId,
-          parent_batch_id: rootstock.id,
-          relationship_type: 'ROOTSTOCK_PARENT',
-          notes: `Parent rootstock: ${rootstock.serial_number}`,
-          created_at: db.fn.now(),
-        },
-        {
-          batch_id: batchId,
-          parent_batch_id: scion.id,
-          relationship_type: 'SCION_PARENT',
-          notes: `Parent scion: ${scion.serial_number}`,
-          created_at: db.fn.now(),
-        },
-      ]);
-
-      // Grafting record
-      await trx('grafting_records').insert({
-        batch_id: batchId,
-        rootstock_batch_id: rootstock.id,
-        scion_batch_id: scion.id,
-        technician_name: data.technician_name,
-        grafting_date: data.grafting_date,
-        quantity_grafted: data.quantity_grafted,
-        successful_count: data.quantity_grafted,
-        curing_days: data.curing_days,
-        notes: data.notes,
-      });
-
-      // Output ledger movement
-      await trx('inventory_movements').insert({
-        batch_id: batchId,
-        movement_type: 'GRAFTING_OUT',
-        quantity_change: data.quantity_grafted,
-        resulting_balance: data.quantity_grafted,
-        reference_type: 'GRAFTING',
-        notes: `Created from grafting: ${data.quantity_grafted} plants`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      return { batchId, serial_number, quantity: data.quantity_grafted };
-    });
-
-    await AuditService.log({
-      userId: req.user!.id,
-      action: 'RECORD_GRAFTING',
-      entityType: 'BATCH',
-      entityId: result.batchId,
-      newValues: result,
-      ipAddress: req.ip,
-    });
-
-    return res.status(201).json({
-      message: `Saved. ${result.quantity} plants grafted and logged in batch ${result.serial_number}`,
-      batch: result,
-    });
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message || 'Grafting operation failed.' });
-  }
-});
-
-// 6. CURING & MORTALITY WIZARD
-const MortalitySchema = z.object({
-  batch_id: z.number(),
-  mortality_count: z.number().min(1),
-  cause_of_death: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/mortality', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { batch_id, mortality_count, cause_of_death, notes } = MortalitySchema.parse(req.body);
-
-    const result = await db.transaction(async (trx) => {
-      const batch = await trx('batches').where({ id: batch_id }).forUpdate().first();
-      if (!batch) throw new Error('Batch not found.');
-      if (batch.current_quantity < mortality_count) {
-        throw new Error(`Mortality count (${mortality_count}) cannot exceed current batch balance (${batch.current_quantity})`);
-      }
-
-      const newBalance = batch.current_quantity - mortality_count;
-      await trx('batches').where({ id: batch.id }).update({
-        current_quantity: newBalance,
-        status: newBalance === 0 ? 'SOLD_OUT' : batch.status,
-        updated_at: db.fn.now(),
-      });
-
-      await trx('curing_mortality_records').insert({
-        batch_id: batch.id,
-        record_type: 'MORTALITY_LOG',
-        healthy_count: newBalance,
-        mortality_count,
-        cause_of_death: cause_of_death || 'Desiccation / fungal infection',
-        logged_by_user_id: req.user!.id,
-        notes,
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: batch.id,
-        movement_type: 'MORTALITY',
-        quantity_change: -mortality_count,
-        resulting_balance: newBalance,
-        reference_type: 'MORTALITY',
-        notes: `Recorded mortality of ${mortality_count} units. Cause: ${cause_of_death || 'General'}`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      return { batch, newBalance };
-    });
-
-    return res.json({
-      message: `Saved. ${mortality_count} losses deducted. Remaining in ${result.batch.serial_number}: ${result.newBalance} plants.`,
-    });
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message });
-  }
-});
-
-// 7. PROMOTE TO READY-FOR-SALE WIZARD
-const PromoteSchema = z.object({
-  grafted_batch_id: z.number(),
-  quantity: z.number().positive(),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/promote-ready', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { grafted_batch_id, quantity, location, notes } = PromoteSchema.parse(req.body);
-
-    const result = await db.transaction(async (trx) => {
-      const sourceBatch = await trx('batches').where({ id: grafted_batch_id }).forUpdate().first();
-      if (!sourceBatch) throw new Error('Source batch not found.');
-      if (sourceBatch.current_quantity < quantity) {
-        throw new Error(`Quantity to promote (${quantity}) exceeds available balance (${sourceBatch.current_quantity}).`);
-      }
-
-      // Deduct from source batch
-      const newSourceBalance = sourceBatch.current_quantity - quantity;
-      await trx('batches').where({ id: sourceBatch.id }).update({
-        current_quantity: newSourceBalance,
-        status: newSourceBalance === 0 ? 'SOLD_OUT' : sourceBatch.status,
-        updated_at: db.fn.now(),
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: sourceBatch.id,
-        movement_type: 'READY_PROMOTION',
-        quantity_change: -quantity,
-        resulting_balance: newSourceBalance,
-        reference_type: 'BATCH_PROMOTION',
-        notes: `Promoted ${quantity} plants to Ready-for-Sale`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // Generate Ready-For-Sale Batch
-      const year = new Date().getFullYear();
-      const prefix = await identifierService.getPrefixForType('READY_FOR_SALE');
-      const seq = await identifierService.getNextSequence(`RFS_${year}`);
-      const template = await identifierService.getSerialTemplate();
-      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
-
-      const [rfsIdObj] = await trx('batches').insert({
-        batch_type: 'READY_FOR_SALE',
-        serial_number,
-        plant_variety: sourceBatch.plant_variety,
-        status: 'READY',
-        initial_quantity: quantity,
-        current_quantity: quantity,
-        location: location || 'Dispatch Hardening Yard',
-        notes: notes || `Promoted from ${sourceBatch.serial_number}`,
-        created_at: db.fn.now(),
-        updated_at: db.fn.now(),
-      }).returning('id');
-
-      const rfsId = typeof rfsIdObj === 'object' ? rfsIdObj.id : rfsIdObj;
-
-      await trx('identifiers').insert({
-        entity_type: 'BATCH',
-        entity_id: rfsId,
-        scheme: 'SERIAL',
-        value: serial_number,
-        status: 'ACTIVE',
-        issued_at: db.fn.now(),
-      });
-
-      // Lineage connection
-      await trx('batch_lineage').insert({
-        batch_id: rfsId,
-        parent_batch_id: sourceBatch.id,
-        relationship_type: 'PROMOTED_FROM',
-        notes: `Promoted from batch ${sourceBatch.serial_number}`,
-        created_at: db.fn.now(),
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: rfsId,
-        movement_type: 'READY_PROMOTION',
-        quantity_change: quantity,
-        resulting_balance: quantity,
-        reference_type: 'BATCH_PROMOTION',
-        notes: `Initial balance of Ready-for-Sale batch`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      return { rfsId, serial_number, quantity };
-    });
-
-    return res.status(201).json({
-      message: `Saved. ${result.quantity} plants promoted to Ready-for-Sale batch ${result.serial_number}`,
-      batch: result,
-    });
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message });
-  }
-});
-
-// 8. GET INVENTORY MOVEMENTS (Ledger Audit Log)
-router.get('/movements', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { batch_id, limit = '50' } = req.query;
-    let query = db('inventory_movements')
-      .join('batches', 'inventory_movements.batch_id', 'batches.id')
-      .leftJoin('users', 'inventory_movements.created_by_user_id', 'users.id')
-      .select(
-        'inventory_movements.*',
-        'batches.serial_number',
-        'batches.plant_variety',
-        'users.full_name as author_name'
-      )
-      .orderBy('inventory_movements.created_at', 'desc')
-      .limit(Math.min(100, parseInt(limit as string, 10) || 50));
-
-    if (batch_id) {
-      query = query.where('inventory_movements.batch_id', batch_id);
-    }
-
-    const movements = await query;
-    return res.json({ movements });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 9. DELETE / DISCARD INVENTORY BATCH
 router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
@@ -671,12 +115,12 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
     }
 
     await db.transaction(async (trx) => {
-      // 1. If batch still has live units, write ledger movement to clear balance to 0
       if (batch.current_quantity > 0) {
         await trx('inventory_movements').insert({
           batch_id: id,
           movement_type: 'MORTALITY_LOSS',
-          quantity: -batch.current_quantity,
+          quantity_change: -batch.current_quantity,
+          resulting_balance: 0,
           reference_type: 'DISCARD_ADJUSTMENT',
           reference_id: String(id),
           notes: `Batch discarded: ${reason}`,
@@ -685,7 +129,6 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
         });
       }
 
-      // 2. Set batch status to DISCARDED and quantity to 0
       await trx('batches').where({ id }).update({
         status: 'DISCARDED',
         current_quantity: 0,
@@ -693,10 +136,8 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
         updated_at: db.fn.now(),
       });
 
-      // 3. Remove any active catalogue product links
       await trx('product_batch_links').where({ batch_id: id }).delete();
 
-      // 4. Update identifier status
       await trx('identifiers').where({ entity_type: 'BATCH', entity_id: id }).update({
         status: 'RETIRED',
         retired_at: db.fn.now(),
@@ -729,5 +170,1552 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
   }
 });
 
-export default router;
+// ==========================================
+// 3. PHASE A: SOWING (Rootstock, Scion, or Both)
+// ==========================================
+router.get('/sowing', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const batches = await db('batches')
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereNot('status', 'DISCARDED')
+      .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
+      .leftJoin('suppliers', 'sowing_records.supplier_id', 'suppliers.id')
+      .select(
+        'batches.*',
+        'sowing_records.seeds_sown',
+        'sowing_records.sowing_date',
+        'sowing_records.seed_source',
+        'sowing_records.plant_type as sowing_plant_type',
+        'suppliers.name as supplier_name'
+      )
+      .orderBy('batches.created_at', 'desc');
 
+    return res.json({ batches });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/sowing', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let { types = [], sowing_date, supplier_id, seed_source, location, notes, rootstock, scion, seed_lot_id, seeds_sown, variety, plant_type } = req.body;
+
+    if ((!types || types.length === 0) && (seeds_sown || seed_lot_id || plant_type || variety)) {
+      const lot = seed_lot_id ? await db('seed_lots').where({ id: seed_lot_id }).first() : null;
+      const pType = (plant_type || 'ROOTSTOCK').toUpperCase().includes('SCION') ? 'SCION' : 'ROOTSTOCK';
+      types = [pType];
+      const itemData = {
+        variety: variety || lot?.plant_variety || 'Certified Variety',
+        seeds_sown: Number(seeds_sown || 100),
+        seed_lot_id: seed_lot_id || null,
+        location,
+        notes,
+      };
+      if (pType === 'SCION') {
+        scion = itemData;
+      } else {
+        rootstock = itemData;
+      }
+    }
+
+    if (!Array.isArray(types) || types.length === 0) {
+      return res.status(400).json({ error: 'Please select at least one plant type: Rootstock, Scion, or Both.' });
+    }
+
+    const isRootstock = types.includes('ROOTSTOCK');
+    const isScion = types.includes('SCION');
+
+    if (isRootstock && (!rootstock || !rootstock.variety || !rootstock.seeds_sown || rootstock.seeds_sown <= 0)) {
+      return res.status(400).json({ error: 'Please provide valid variety and seeds sown count for Rootstock.' });
+    }
+
+    if (isScion && (!scion || !scion.variety || !scion.seeds_sown || scion.seeds_sown <= 0)) {
+      return res.status(400).json({ error: 'Please provide valid variety and seeds sown count for Scion.' });
+    }
+
+    const sowDate = sowing_date || new Date().toISOString().split('T')[0];
+    const createdBatches: any[] = [];
+
+    await db.transaction(async (trx) => {
+      const year = new Date(sowDate).getFullYear();
+      const template = await identifierService.getSerialTemplate();
+
+      // 1. Process Rootstock if selected
+      if (isRootstock) {
+        const prefix = await identifierService.getPrefixForType('ROOTSTOCK');
+        const seq = await identifierService.getNextSequence(`ROOT_${year}`);
+        const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+        const [bIdObj] = await trx('batches').insert({
+          batch_type: 'ROOTSTOCK',
+          serial_number,
+          plant_variety: rootstock.variety,
+          status: 'SOWN',
+          stage: 'SOWN',
+          initial_quantity: rootstock.seeds_sown,
+          current_quantity: rootstock.seeds_sown,
+          location: rootstock.location || location || 'Nursery Tray Block A',
+          notes: rootstock.notes || notes || 'Rootstock seeds sown',
+          created_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        }).returning('id');
+
+        const bId = typeof bIdObj === 'object' ? bIdObj.id : bIdObj;
+
+        await trx('identifiers').insert({
+          entity_type: 'BATCH',
+          entity_id: bId,
+          scheme: 'SERIAL',
+          value: serial_number,
+          status: 'ACTIVE',
+          issued_at: db.fn.now(),
+        });
+
+        await trx('sowing_records').insert({
+          batch_id: bId,
+          plant_type: 'ROOTSTOCK',
+          variety: rootstock.variety,
+          seed_lot_id: rootstock.seed_lot_id || null,
+          seed_source: seed_source || 'Certified Supplier',
+          seeds_sown: rootstock.seeds_sown,
+          sowing_date: sowDate,
+          location: rootstock.location || location || 'Nursery Tray Block A',
+          notes: rootstock.notes || notes,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+
+        await trx('inventory_movements').insert({
+          batch_id: bId,
+          movement_type: 'SOWING',
+          quantity_change: rootstock.seeds_sown,
+          resulting_balance: rootstock.seeds_sown,
+          reference_type: 'SOWING',
+          notes: `Initial Rootstock sowing of ${rootstock.seeds_sown} seeds`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+
+        createdBatches.push({
+          id: bId,
+          batchId: bId,
+          serial_number,
+          batch_type: 'ROOTSTOCK',
+          variety: rootstock.variety,
+          seeds_sown: rootstock.seeds_sown,
+          current_quantity: rootstock.seeds_sown,
+        });
+      }
+
+      // 2. Process Scion if selected
+      if (isScion) {
+        const prefix = await identifierService.getPrefixForType('SCION');
+        const seq = await identifierService.getNextSequence(`SCION_${year}`);
+        const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+        const [bIdObj] = await trx('batches').insert({
+          batch_type: 'SCION',
+          serial_number,
+          plant_variety: scion.variety,
+          status: 'SOWN',
+          stage: 'SOWN',
+          initial_quantity: scion.seeds_sown,
+          current_quantity: scion.seeds_sown,
+          location: scion.location || location || 'Nursery Tray Block B',
+          notes: scion.notes || notes || 'Scion mother-line seeds sown',
+          created_at: db.fn.now(),
+          updated_at: db.fn.now(),
+        }).returning('id');
+
+        const bId = typeof bIdObj === 'object' ? bIdObj.id : bIdObj;
+
+        await trx('identifiers').insert({
+          entity_type: 'BATCH',
+          entity_id: bId,
+          scheme: 'SERIAL',
+          value: serial_number,
+          status: 'ACTIVE',
+          issued_at: db.fn.now(),
+        });
+
+        await trx('sowing_records').insert({
+          batch_id: bId,
+          plant_type: 'SCION',
+          variety: scion.variety,
+          seed_lot_id: scion.seed_lot_id || null,
+          seed_source: seed_source || 'Certified Supplier',
+          seeds_sown: scion.seeds_sown,
+          sowing_date: sowDate,
+          location: scion.location || location || 'Nursery Tray Block B',
+          notes: scion.notes || notes,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+
+        await trx('inventory_movements').insert({
+          batch_id: bId,
+          movement_type: 'SOWING',
+          quantity_change: scion.seeds_sown,
+          resulting_balance: scion.seeds_sown,
+          reference_type: 'SOWING',
+          notes: `Initial Scion sowing of ${scion.seeds_sown} seeds`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+
+        createdBatches.push({
+          id: bId,
+          batchId: bId,
+          serial_number,
+          batch_type: 'SCION',
+          variety: scion.variety,
+          seeds_sown: scion.seeds_sown,
+          current_quantity: scion.seeds_sown,
+        });
+      }
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'SOWING_CREATED',
+      entityType: 'SOWING',
+      newValues: { types, batches: createdBatches },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully registered ${createdBatches.length} sowing batch(es).`,
+      batches: createdBatches,
+      batch: createdBatches[0],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 4. PHASE B: GERMINATION TRACKING
+// ==========================================
+router.get('/germination', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const batches = await db('batches')
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereNot('status', 'DISCARDED')
+      .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
+      .select(
+        'batches.*',
+        'sowing_records.seeds_sown',
+        'sowing_records.sowing_date',
+        'sowing_records.seed_source',
+        'sowing_records.plant_type as sowing_plant_type'
+      )
+      .orderBy('batches.created_at', 'desc');
+
+    const result = await Promise.all(
+      batches.map(async (b) => {
+        const latestObs = await db('germination_observations')
+          .where({ batch_id: b.id })
+          .orderBy('observation_date', 'desc')
+          .first();
+
+        const countObs = await db('germination_observations')
+          .where({ batch_id: b.id })
+          .count('id as count')
+          .first();
+
+        const totalSeeds = b.seeds_sown || b.initial_quantity;
+        const germinated = latestObs ? latestObs.germinated_count : 0;
+        const viable = latestObs ? latestObs.viable_seedlings_count : b.current_quantity;
+        const rate = latestObs ? latestObs.germination_rate : 0;
+
+        return {
+          ...b,
+          total_seeds: totalSeeds,
+          germinated_quantity: germinated,
+          remaining_viable_seedlings: viable,
+          germination_percentage: rate,
+          observation_count: parseInt(String(countObs?.count || '0'), 10),
+          latest_observation: latestObs || null,
+        };
+      })
+    );
+
+    return res.json({ batches: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/germination/:batchId', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const { observation_date, total_seeds_sown, germinated_count, non_germinated_count = 0, damaged_dead_count = 0, notes } = req.body;
+
+    const batch = await db('batches').where({ id: batchId }).first();
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found.' });
+    }
+
+    const sowRecord = await db('sowing_records').where({ batch_id: batchId }).first();
+    const totalSeeds = total_seeds_sown || sowRecord?.seeds_sown || batch.initial_quantity;
+
+    const germCount = Number(germinated_count);
+    const nonGermCount = Number(non_germinated_count || 0);
+    const deadCount = Number(damaged_dead_count || 0);
+
+    if (isNaN(germCount) || germCount < 0) {
+      return res.status(400).json({ error: 'Germinated seeds count must be a non-negative number.' });
+    }
+
+    if (germCount > totalSeeds) {
+      return res.status(400).json({ error: `Germinated quantity (${germCount}) cannot exceed total seeds sown (${totalSeeds}).` });
+    }
+
+    const viableSeedlings = Math.max(0, germCount - deadCount);
+    const germRate = totalSeeds > 0 ? parseFloat(((germCount / totalSeeds) * 100).toFixed(1)) : 0;
+    const obsDate = observation_date || new Date().toISOString().split('T')[0];
+
+    let insertedObsId: number | null = null;
+
+    await db.transaction(async (trx) => {
+      // 1. Insert dated observation record (never overwrites history!)
+      const [idObj] = await trx('germination_observations').insert({
+        batch_id: batchId,
+        observation_date: obsDate,
+        total_seeds_sown: totalSeeds,
+        germinated_count: germCount,
+        non_germinated_count: nonGermCount,
+        damaged_dead_count: deadCount,
+        viable_seedlings_count: viableSeedlings,
+        germination_rate: germRate,
+        notes: notes || null,
+        recorded_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      }).returning('id');
+
+      insertedObsId = typeof idObj === 'object' ? idObj.id : idObj;
+
+      // 2. Update batch current quantity and status
+      const prevQty = batch.current_quantity;
+      const newStatus = batch.status === 'SOWN' ? 'GERMINATED' : batch.status;
+
+      await trx('batches').where({ id: batchId }).update({
+        current_quantity: viableSeedlings,
+        status: newStatus,
+        stage: 'GERMINATED',
+        updated_at: db.fn.now(),
+      });
+
+      // 3. Write inventory movement ledger entry
+      await trx('inventory_movements').insert({
+        batch_id: batchId,
+        movement_type: 'GERMINATION',
+        quantity_change: viableSeedlings - prevQty,
+        resulting_balance: viableSeedlings,
+        reference_type: 'GERMINATION',
+        reference_id: String(insertedObsId),
+        notes: `Germination observation: ${germCount} germinated (${germRate}%), ${viableSeedlings} viable seedlings`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'GERMINATION_RECORDED',
+      entityType: 'GERMINATION',
+      entityId: String(batchId),
+      newValues: { germCount, deadCount, viableSeedlings, germRate, obsDate },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Germination recorded: ${germRate}% (${viableSeedlings} viable plants).`,
+      observation: {
+        id: insertedObsId,
+        batch_id: batchId,
+        observation_date: obsDate,
+        total_seeds_sown: totalSeeds,
+        germinated_count: germCount,
+        non_germinated_count: nonGermCount,
+        damaged_dead_count: deadCount,
+        viable_seedlings_count: viableSeedlings,
+        germination_rate: germRate,
+        notes: notes || null,
+      },
+      viable_seedlings: viableSeedlings,
+      germination_rate: germRate,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/germination/:batchId/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const history = await db('germination_observations')
+      .where({ batch_id: batchId })
+      .orderBy('observation_date', 'asc');
+
+    return res.json({ history });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 5. PHASE C: PLANT GROWTH TRACKING
+// ==========================================
+router.get('/growth', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const batches = await db('batches')
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereNot('status', 'DISCARDED')
+      .orderBy('created_at', 'desc');
+
+    const result = await Promise.all(
+      batches.map(async (b) => {
+        const latestLog = await db('plant_growth_logs')
+          .where({ batch_id: b.id })
+          .orderBy('log_date', 'desc')
+          .first();
+
+        const logsCount = await db('plant_growth_logs')
+          .where({ batch_id: b.id })
+          .count('id as count')
+          .first();
+
+        return {
+          ...b,
+          growth_status: b.status,
+          log_count: parseInt(String(logsCount?.count || '0'), 10),
+          latest_log: latestLog || null,
+        };
+      })
+    );
+
+    return res.json({ batches: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/growth/:batchId/status', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const { new_status, log_date, notes } = req.body;
+
+    const batch = await db('batches').where({ id: batchId }).first();
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found.' });
+    }
+
+    if (!new_status) {
+      return res.status(400).json({ error: 'New status is required.' });
+    }
+
+    const dateVal = log_date || new Date().toISOString().split('T')[0];
+
+    await db.transaction(async (trx) => {
+      await trx('batches').where({ id: batchId }).update({
+        status: new_status,
+        stage: new_status,
+        updated_at: db.fn.now(),
+      });
+
+      await trx('plant_growth_logs').insert({
+        batch_id: batchId,
+        log_date: dateVal,
+        previous_status: batch.status,
+        new_status,
+        previous_quantity: batch.current_quantity,
+        quantity_change: 0,
+        new_quantity: batch.current_quantity,
+        reason: 'Status Advancement',
+        notes: notes || null,
+        recorded_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'GROWTH_STATUS_UPDATED',
+      entityType: 'GROWTH',
+      entityId: String(batchId),
+      oldValues: { status: batch.status },
+      newValues: { status: new_status },
+      ipAddress: req.ip,
+    });
+
+    return res.json({
+      success: true,
+      message: `Batch ${batch.serial_number} updated to status "${new_status}".`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/growth/:batchId/loss', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const { loss_quantity, log_date, reason, notes } = req.body;
+
+    const lossQty = Number(loss_quantity);
+    if (isNaN(lossQty) || lossQty <= 0) {
+      return res.status(400).json({ error: 'Loss quantity must be a positive number.' });
+    }
+
+    const batch = await db('batches').where({ id: batchId }).first();
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found.' });
+    }
+
+    if (lossQty > batch.current_quantity) {
+      return res.status(400).json({
+        error: `Loss quantity (${lossQty}) exceeds current available quantity (${batch.current_quantity}).`,
+      });
+    }
+
+    const newQty = batch.current_quantity - lossQty;
+    const dateVal = log_date || new Date().toISOString().split('T')[0];
+
+    await db.transaction(async (trx) => {
+      await trx('batches').where({ id: batchId }).update({
+        current_quantity: newQty,
+        updated_at: db.fn.now(),
+      });
+
+      await trx('plant_growth_logs').insert({
+        batch_id: batchId,
+        log_date: dateVal,
+        previous_status: batch.status,
+        new_status: batch.status,
+        previous_quantity: batch.current_quantity,
+        quantity_change: -lossQty,
+        new_quantity: newQty,
+        reason: reason || 'Mortality / Loss',
+        notes: notes || null,
+        recorded_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: batchId,
+        movement_type: 'MORTALITY',
+        quantity_change: -lossQty,
+        resulting_balance: newQty,
+        reference_type: 'GROWTH_LOSS',
+        notes: `Plant growth loss: ${lossQty} plants lost (${reason || 'mortality'})`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'GROWTH_LOSS_RECORDED',
+      entityType: 'GROWTH',
+      entityId: String(batchId),
+      newValues: { lossQty, newQty, reason },
+      ipAddress: req.ip,
+    });
+
+    return res.json({
+      success: true,
+      message: `Recorded ${lossQty} plants lost. Remaining balance: ${newQty}.`,
+      new_quantity: newQty,
+      remaining_quantity: newQty,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/growth/:batchId/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const history = await db('plant_growth_logs')
+      .where({ batch_id: batchId })
+      .orderBy('log_date', 'asc');
+
+    return res.json({ history });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 6. PHASE D: GRAFTING
+// ==========================================
+router.get('/grafting/eligible-batches', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Eligible Rootstocks: status in ['READY_FOR_GRAFTING', 'ACTIVE', 'GERMINATED', 'GROWING'] and qty > 0
+    const rootstocks = await db('batches')
+      .where({ batch_type: 'ROOTSTOCK' })
+      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED'])
+      .where('current_quantity', '>', 0)
+      .orderBy('created_at', 'desc');
+
+    // Eligible Scions: status in ['READY_FOR_GRAFTING', 'ACTIVE', 'GERMINATED', 'GROWING'] and qty > 0
+    const scions = await db('batches')
+      .where({ batch_type: 'SCION' })
+      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED'])
+      .where('current_quantity', '>', 0)
+      .orderBy('created_at', 'desc');
+
+    return res.json({ rootstocks, scions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/grafting', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const grafts = await db('batches')
+      .where({ batch_type: 'GRAFTED' })
+      .whereNot('status', 'DISCARDED')
+      .leftJoin('grafting_records', 'batches.id', 'grafting_records.batch_id')
+      .select(
+        'batches.*',
+        'grafting_records.rootstock_batch_id',
+        'grafting_records.scion_batch_id',
+        'grafting_records.technician_name',
+        'grafting_records.grafting_date',
+        'grafting_records.quantity_grafted'
+      )
+      .orderBy('batches.created_at', 'desc');
+
+    const result = await Promise.all(
+      grafts.map(async (g) => {
+        const rootstock = g.rootstock_batch_id ? await db('batches').where({ id: g.rootstock_batch_id }).first() : null;
+        const scion = g.scion_batch_id ? await db('batches').where({ id: g.scion_batch_id }).first() : null;
+        const latestCuring = await db('curing_survival_observations').where({ batch_id: g.id }).orderBy('observation_date', 'desc').first();
+
+        return {
+          ...g,
+          rootstock_serial: rootstock?.serial_number || 'N/A',
+          rootstock_variety: rootstock?.plant_variety || 'Rootstock',
+          scion_serial: scion?.serial_number || 'N/A',
+          scion_variety: scion?.plant_variety || 'Scion',
+          survival_rate: latestCuring?.survival_rate || 100,
+          healed_count: latestCuring?.healed_count || g.current_quantity,
+        };
+      })
+    );
+
+    return res.json({ grafts: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const handleGrafting = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { rootstock_batch_id, scion_batch_id, grafting_date, quantity_grafted, technician_name, grafting_method, notes } = req.body;
+
+    const qty = Number(quantity_grafted);
+    if (isNaN(qty) || qty <= 0) {
+      return res.status(400).json({ error: 'Quantity of grafts attempted must be a positive number.' });
+    }
+
+    if (!rootstock_batch_id || !scion_batch_id) {
+      return res.status(400).json({ error: 'Both Rootstock batch and Scion batch must be selected.' });
+    }
+
+    let createdGraftBatch: any = null;
+
+    await db.transaction(async (trx) => {
+      // 1. Lock and validate Rootstock batch
+      const rootstock = await trx('batches').where({ id: rootstock_batch_id }).forUpdate().first();
+      if (!rootstock) {
+        throw new Error('Selected Rootstock batch not found.');
+      }
+      if (rootstock.current_quantity < qty) {
+        throw new Error(`Insufficient Rootstock balance. Available: ${rootstock.current_quantity}, requested: ${qty}.`);
+      }
+
+      // 2. Lock and validate Scion batch
+      const scion = await trx('batches').where({ id: scion_batch_id }).forUpdate().first();
+      if (!scion) {
+        throw new Error('Selected Scion batch not found.');
+      }
+      if (scion.current_quantity < qty) {
+        throw new Error(`Insufficient Scion balance. Available: ${scion.current_quantity}, requested: ${qty}.`);
+      }
+
+      // 3. Deduct from Rootstock batch
+      const newRootstockQty = rootstock.current_quantity - qty;
+      const rootstockStatus = newRootstockQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
+      await trx('batches').where({ id: rootstock_batch_id }).update({
+        current_quantity: newRootstockQty,
+        status: rootstockStatus,
+        updated_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: rootstock_batch_id,
+        movement_type: 'GRAFTING_IN',
+        quantity_change: -qty,
+        resulting_balance: newRootstockQty,
+        reference_type: 'GRAFTING',
+        notes: `Consumed ${qty} rootstocks for grafting`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 4. Deduct from Scion batch
+      const newScionQty = scion.current_quantity - qty;
+      const scionStatus = newScionQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
+      await trx('batches').where({ id: scion_batch_id }).update({
+        current_quantity: newScionQty,
+        status: scionStatus,
+        updated_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: scion_batch_id,
+        movement_type: 'GRAFTING_IN',
+        quantity_change: -qty,
+        resulting_balance: newScionQty,
+        reference_type: 'GRAFTING',
+        notes: `Consumed ${qty} scions for grafting`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 5. Generate Grafted Batch
+      const graftDateVal = grafting_date || new Date().toISOString().split('T')[0];
+      const year = new Date(graftDateVal).getFullYear();
+      const prefix = await identifierService.getPrefixForType('GRAFTED');
+      const seq = await identifierService.getNextSequence(`GRAFT_${year}`);
+      const template = await identifierService.getSerialTemplate();
+      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+      const combinedVariety = `${scion.plant_variety} (on ${rootstock.plant_variety})`;
+
+      const [gIdObj] = await trx('batches').insert({
+        batch_type: 'GRAFTED',
+        serial_number,
+        plant_variety: combinedVariety,
+        status: 'CURING',
+        stage: 'CURING',
+        initial_quantity: qty,
+        current_quantity: qty,
+        location: 'Acclimatization Curing Chamber',
+        notes: notes || `Grafted using ${grafting_method || 'Cleft Grafting'} by ${technician_name || 'Staff'}`,
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
+
+      const gId = typeof gIdObj === 'object' ? gIdObj.id : gIdObj;
+
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: gId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
+
+      // 6. Permanently link to BOTH parent batches
+      await trx('batch_lineage').insert([
+        {
+          batch_id: gId,
+          parent_batch_id: rootstock_batch_id,
+          relationship_type: 'ROOTSTOCK_PARENT',
+          notes: `Rootstock donor ${rootstock.serial_number}`,
+          created_at: db.fn.now(),
+        },
+        {
+          batch_id: gId,
+          parent_batch_id: scion_batch_id,
+          relationship_type: 'SCION_PARENT',
+          notes: `Scion donor ${scion.serial_number}`,
+          created_at: db.fn.now(),
+        },
+      ]);
+
+      // 7. Record in grafting_records
+      await trx('grafting_records').insert({
+        batch_id: gId,
+        rootstock_batch_id,
+        scion_batch_id,
+        technician_name: technician_name || 'Staff',
+        grafting_date: graftDateVal,
+        quantity_grafted: qty,
+        successful_count: qty,
+        failed_count: 0,
+        curing_days: 21,
+        survival_rate: 100,
+        notes: notes || grafting_method,
+      });
+
+      // 8. Record initial curing survival observation
+      await trx('curing_survival_observations').insert({
+        batch_id: gId,
+        observation_date: graftDateVal,
+        total_grafts_attempted: qty,
+        healed_count: qty,
+        failed_count: 0,
+        dead_count: 0,
+        surviving_count: qty,
+        survival_rate: 100,
+        notes: 'Initial day of grafting union setting',
+        recorded_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 9. Initial ledger movement
+      await trx('inventory_movements').insert({
+        batch_id: gId,
+        movement_type: 'GRAFTING_OUT',
+        quantity_change: qty,
+        resulting_balance: qty,
+        reference_type: 'GRAFTING',
+        notes: `Batch created from ${qty} grafts`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      createdGraftBatch = {
+        id: gId,
+        batchId: gId,
+        serial_number,
+        plant_variety: combinedVariety,
+        quantity: qty,
+      };
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'GRAFTING_RUN_CREATED',
+      entityType: 'GRAFTING',
+      newValues: { createdGraftBatch, rootstock_batch_id, scion_batch_id, qty },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Grafting successful. Created batch ${createdGraftBatch.serial_number} (${qty} units).`,
+      batch: createdGraftBatch,
+    });
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+};
+
+router.post('/grafting', requirePermission('INVENTORY_WRITE'), handleGrafting);
+
+// ==========================================
+// 7. PHASE E: CURING & SURVIVAL
+// ==========================================
+router.get('/curing', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const grafts = await db('batches')
+      .where({ batch_type: 'GRAFTED' })
+      .whereNot('status', 'DISCARDED')
+      .leftJoin('grafting_records', 'batches.id', 'grafting_records.batch_id')
+      .select(
+        'batches.*',
+        'grafting_records.quantity_grafted as total_grafted',
+        'grafting_records.grafting_date',
+        'grafting_records.technician_name'
+      )
+      .orderBy('batches.created_at', 'desc');
+
+    const result = await Promise.all(
+      grafts.map(async (g) => {
+        const latestObs = await db('curing_survival_observations')
+          .where({ batch_id: g.id })
+          .orderBy('observation_date', 'desc')
+          .first();
+
+        const countObs = await db('curing_survival_observations')
+          .where({ batch_id: g.id })
+          .count('id as count')
+          .first();
+
+        const totalAttempted = g.total_grafted || g.initial_quantity;
+        const rate = latestObs ? latestObs.survival_rate : 100;
+        const healed = latestObs ? latestObs.healed_count : g.current_quantity;
+        const failed = latestObs ? latestObs.failed_count : 0;
+        const dead = latestObs ? latestObs.dead_count : 0;
+
+        return {
+          ...g,
+          total_grafted: totalAttempted,
+          healed_count: healed,
+          failed_count: failed,
+          dead_count: dead,
+          surviving_quantity: g.current_quantity,
+          survival_rate: rate,
+          observation_count: parseInt(String(countObs?.count || '0'), 10),
+          latest_observation: latestObs || null,
+        };
+      })
+    );
+
+    return res.json({ batches: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/curing/:batchId/observation', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const { observation_date, healed_count, failed_count = 0, dead_count = 0, notes } = req.body;
+
+    const batch = await db('batches').where({ id: batchId }).first();
+    if (!batch) {
+      return res.status(404).json({ error: 'Grafted batch not found.' });
+    }
+
+    const graftRecord = await db('grafting_records').where({ batch_id: batchId }).first();
+    const totalAttempted = graftRecord?.quantity_grafted || batch.initial_quantity;
+
+    const healed = Number(healed_count);
+    const failed = Number(failed_count || 0);
+    const dead = Number(dead_count || 0);
+
+    if (isNaN(healed) || healed < 0) {
+      return res.status(400).json({ error: 'Healed count must be a non-negative number.' });
+    }
+
+    if (healed > totalAttempted) {
+      return res.status(400).json({ error: `Healed count (${healed}) cannot exceed total grafts attempted (${totalAttempted}).` });
+    }
+
+    const rate = totalAttempted > 0 ? parseFloat(((healed / totalAttempted) * 100).toFixed(1)) : 0;
+    const obsDate = observation_date || new Date().toISOString().split('T')[0];
+
+    await db.transaction(async (trx) => {
+      // 1. Insert dated observation without overwriting history
+      await trx('curing_survival_observations').insert({
+        batch_id: batchId,
+        observation_date: obsDate,
+        total_grafts_attempted: totalAttempted,
+        healed_count: healed,
+        failed_count: failed,
+        dead_count: dead,
+        surviving_count: healed,
+        survival_rate: rate,
+        notes: notes || null,
+        recorded_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 2. Update current surviving quantity on batch
+      const prevQty = batch.current_quantity;
+      const difference = healed - prevQty;
+
+      await trx('batches').where({ id: batchId }).update({
+        current_quantity: healed,
+        updated_at: db.fn.now(),
+      });
+
+      // 3. Record ledger movement if quantity adjusted
+      if (difference !== 0) {
+        await trx('inventory_movements').insert({
+          batch_id: batchId,
+          movement_type: difference < 0 ? 'MORTALITY' : 'ADJUSTMENT',
+          quantity_change: difference,
+          resulting_balance: healed,
+          reference_type: 'CURING_OBSERVATION',
+          notes: `Curing update: ${healed} surviving healed grafts (${rate}% survival rate)`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+      }
+    });
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'CURING_OBSERVATION_RECORDED',
+      entityType: 'CURING',
+      entityId: String(batchId),
+      newValues: { healed, failed, dead, rate, obsDate },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Curing progress updated: ${healed} surviving healed plants (${rate}% survival rate).`,
+      observation: {
+        batch_id: batchId,
+        observation_date: obsDate,
+        total_grafts_attempted: totalAttempted,
+        healed_count: healed,
+        failed_count: failed,
+        dead_count: dead,
+        surviving_count: healed,
+        survival_rate: rate,
+        notes: notes || null,
+      },
+      surviving_quantity: healed,
+      survival_rate: rate,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/curing/:batchId/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batchId } = req.params;
+    const history = await db('curing_survival_observations')
+      .where({ batch_id: batchId })
+      .orderBy('observation_date', 'asc');
+
+    return res.json({ history });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 8. PHASE F: READY FOR SALE (Explicit Promotion)
+// ==========================================
+router.get('/ready-for-sale', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const readyBatches = await db('batches')
+      .where({ batch_type: 'READY_FOR_SALE' })
+      .whereNot('status', 'DISCARDED')
+      .orderBy('created_at', 'desc');
+
+    const promotableGrafts = await db('batches')
+      .where({ batch_type: 'GRAFTED' })
+      .where('current_quantity', '>', 0)
+      .whereNot('status', 'DISCARDED')
+      .orderBy('created_at', 'desc');
+
+    const resultReady = await Promise.all(
+      readyBatches.map(async (rb) => {
+        const lineage = await db('batch_lineage').where({ batch_id: rb.id }).first();
+        const promo = await db('ready_for_sale_promotions').where({ ready_batch_id: rb.id }).first();
+
+        let rootstockSerial = 'N/A';
+        let scionSerial = 'N/A';
+        let graftedSerial = 'N/A';
+
+        if (lineage) {
+          const graftBatch = await db('batches').where({ id: lineage.parent_batch_id }).first();
+          if (graftBatch) {
+            graftedSerial = graftBatch.serial_number;
+            const parents = await db('batch_lineage').where({ batch_id: graftBatch.id });
+            for (const p of parents) {
+              const parentB = await db('batches').where({ id: p.parent_batch_id }).first();
+              if (p.relationship_type === 'ROOTSTOCK_PARENT') rootstockSerial = parentB?.serial_number || 'N/A';
+              if (p.relationship_type === 'SCION_PARENT') scionSerial = parentB?.serial_number || 'N/A';
+            }
+          }
+        }
+
+        return {
+          ...rb,
+          grafted_serial: graftedSerial,
+          original_rootstock: rootstockSerial,
+          original_scion: scionSerial,
+          ready_date: promo?.promotion_date || rb.created_at,
+        };
+      })
+    );
+
+    return res.json({
+      readyBatches: resultReady,
+      promotableGrafts,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/ready-for-sale/promote', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { grafted_batch_id, quantity, promotion_date, notes } = req.body;
+
+    const qty = Number(quantity);
+    if (isNaN(qty) || qty <= 0) {
+      return res.status(400).json({ error: 'Quantity to promote must be a positive number.' });
+    }
+
+    if (!grafted_batch_id) {
+      return res.status(400).json({ error: 'Grafted batch must be selected.' });
+    }
+
+    let createdReadyBatch: any = null;
+
+    await db.transaction(async (trx) => {
+      // 1. Lock and validate grafted batch
+      const graft = await trx('batches').where({ id: grafted_batch_id }).forUpdate().first();
+      if (!graft) {
+        throw new Error('Grafted batch not found.');
+      }
+      if (graft.current_quantity < qty) {
+        throw new Error(`Insufficient surviving quantity. Available: ${graft.current_quantity}, requested: ${qty}.`);
+      }
+
+      // 2. Deduct promoted quantity from grafted batch
+      const newGraftQty = graft.current_quantity - qty;
+      await trx('batches').where({ id: grafted_batch_id }).update({
+        current_quantity: newGraftQty,
+        status: newGraftQty === 0 ? 'COMPLETED' : graft.status,
+        updated_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: grafted_batch_id,
+        movement_type: 'READY_PROMOTION',
+        quantity_change: -qty,
+        resulting_balance: newGraftQty,
+        reference_type: 'PROMOTION',
+        notes: `Promoted ${qty} plants to ready-for-sale inventory`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 3. Generate Ready for Sale batch
+      const promoDate = promotion_date || new Date().toISOString().split('T')[0];
+      const year = new Date(promoDate).getFullYear();
+      const prefix = await identifierService.getPrefixForType('READY_FOR_SALE');
+      const seq = await identifierService.getNextSequence(`RFS_${year}`);
+      const template = await identifierService.getSerialTemplate();
+      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+      const [rIdObj] = await trx('batches').insert({
+        batch_type: 'READY_FOR_SALE',
+        serial_number,
+        plant_variety: graft.plant_variety,
+        status: 'READY',
+        stage: 'READY_FOR_SALE',
+        initial_quantity: qty,
+        current_quantity: qty,
+        location: 'Commercial Dispatch Yard',
+        notes: notes || `Promoted from cured graft ${graft.serial_number}`,
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
+
+      const rId = typeof rIdObj === 'object' ? rIdObj.id : rIdObj;
+
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: rId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
+
+      // 4. Link lineage
+      await trx('batch_lineage').insert({
+        batch_id: rId,
+        parent_batch_id: grafted_batch_id,
+        relationship_type: 'PROMOTED_FROM',
+        notes: `Promoted from grafted batch ${graft.serial_number}`,
+        created_at: db.fn.now(),
+      });
+
+      // 5. Record promotion
+      await trx('ready_for_sale_promotions').insert({
+        grafted_batch_id,
+        ready_batch_id: rId,
+        quantity_promoted: qty,
+        promotion_date: promoDate,
+        notes: notes || null,
+        promoted_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 6. Record inventory movement
+      await trx('inventory_movements').insert({
+        batch_id: rId,
+        movement_type: 'READY_PROMOTION',
+        quantity_change: qty,
+        resulting_balance: qty,
+        reference_type: 'PROMOTION',
+        notes: `New ready-for-sale inventory batch ${serial_number}`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+
+      // 7. Auto-link to matching catalogue product if exists
+      const cleanVar = graft.plant_variety.split('(')[0].trim().toLowerCase();
+      const product = await trx('products')
+        .whereRaw('LOWER(name) LIKE ?', [`%${cleanVar}%`])
+        .first();
+
+      if (product) {
+        await trx('product_batch_links').insert({
+          product_id: product.id,
+          batch_id: rId,
+          created_at: db.fn.now(),
+        });
+      }
+
+      createdReadyBatch = {
+        id: rId,
+        serial_number,
+        plant_variety: graft.plant_variety,
+        quantity: qty,
+      };
+    });
+
+    invalidatePublicCache();
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'BATCH_PROMOTED_TO_READY',
+      entityType: 'READY_FOR_SALE',
+      newValues: { createdReadyBatch, grafted_batch_id, qty },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Promoted ${qty} plants to Ready-for-Sale batch ${createdReadyBatch.serial_number}.`,
+      batch: createdReadyBatch,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Insufficient')) {
+      return res.status(400).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
+// ==========================================
+// 9. DASHBOARD METRICS API
+// ==========================================
+router.get('/dashboard-metrics', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rootstockBatches = await db('batches')
+      .where({ batch_type: 'ROOTSTOCK' })
+      .whereNot('status', 'DISCARDED')
+      .count('id as count')
+      .first();
+
+    const scionBatches = await db('batches')
+      .where({ batch_type: 'SCION' })
+      .whereNot('status', 'DISCARDED')
+      .count('id as count')
+      .first();
+
+    const seedsSownRes = await db('sowing_records').sum('seeds_sown as total').first();
+    const seedsSown = parseInt(String(seedsSownRes?.total || '0'), 10);
+
+    const germinatedPlantsRes = await db('germination_observations').sum('germinated_count as total').first();
+    const germinatedPlants = parseInt(String(germinatedPlantsRes?.total || '0'), 10);
+
+    const readyForGraftingRes = await db('batches')
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE'])
+      .sum('current_quantity as total')
+      .first();
+    const plantsReadyForGrafting = parseInt(String(readyForGraftingRes?.total || '0'), 10);
+
+    const activeGraftingBatches = await db('batches')
+      .where({ batch_type: 'GRAFTED' })
+      .whereNot('status', 'DISCARDED')
+      .count('id as count')
+      .first();
+
+    const plantsUnderCuringRes = await db('batches')
+      .where({ batch_type: 'GRAFTED', status: 'CURING' })
+      .sum('current_quantity as total')
+      .first();
+    const plantsUnderCuring = parseInt(String(plantsUnderCuringRes?.total || '0'), 10);
+
+    const readyForSalePlantsRes = await db('batches')
+      .where({ batch_type: 'READY_FOR_SALE', status: 'READY' })
+      .sum('current_quantity as total')
+      .first();
+    const readyForSalePlants = parseInt(String(readyForSalePlantsRes?.total || '0'), 10);
+
+    const totalPlantsSoldRes = await db('order_items').sum('quantity as total').first();
+    const totalPlantsSold = parseInt(String(totalPlantsSoldRes?.total || '0'), 10);
+
+    return res.json({
+      metrics: {
+        totalRootstockBatches: parseInt(String(rootstockBatches?.count || '0'), 10),
+        totalScionBatches: parseInt(String(scionBatches?.count || '0'), 10),
+        seedsSown,
+        germinatedPlants,
+        plantsReadyForGrafting,
+        activeGraftingBatches: parseInt(String(activeGraftingBatches?.count || '0'), 10),
+        plantsUnderCuring,
+        readyForSalePlants,
+        totalPlantsSold,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 10. INVENTORY MOVEMENTS (Ledger History)
+// ==========================================
+router.get('/movements', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batch_id, limit = '50' } = req.query;
+    let query = db('inventory_movements')
+      .join('batches', 'inventory_movements.batch_id', 'batches.id')
+      .leftJoin('users', 'inventory_movements.created_by_user_id', 'users.id')
+      .select(
+        'inventory_movements.*',
+        'batches.serial_number',
+        'batches.plant_variety',
+        'users.full_name as author_name'
+      )
+      .orderBy('inventory_movements.created_at', 'desc')
+      .limit(Math.min(100, parseInt(limit as string, 10) || 50));
+
+    if (batch_id) {
+      query = query.where('inventory_movements.batch_id', batch_id);
+    }
+
+    const movements = await query;
+    return res.json({ movements });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 11. LEGACY COMPATIBILITY ENDPOINTS (Supporting test suites)
+// ==========================================
+router.post('/sow', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { plant_variety, seeds_sown, sowing_date, location, notes, seed_lot_id } = req.body;
+    const year = new Date().getFullYear();
+    const prefix = await identifierService.getPrefixForType('ROOTSTOCK');
+    const seq = await identifierService.getNextSequence(`ROOT_${year}`);
+    const template = await identifierService.getSerialTemplate();
+    const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+    let batchId: any;
+    await db.transaction(async (trx) => {
+      const [idObj] = await trx('batches').insert({
+        batch_type: 'ROOTSTOCK',
+        serial_number,
+        plant_variety,
+        status: 'ACTIVE',
+        stage: 'SOWN',
+        initial_quantity: seeds_sown,
+        current_quantity: seeds_sown,
+        location: location || 'Nursery Bed',
+        notes: notes || 'Legacy sowing endpoint',
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
+
+      batchId = typeof idObj === 'object' ? idObj.id : idObj;
+
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: batchId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
+
+      await trx('sowing_records').insert({
+        batch_id: batchId,
+        seed_lot_id: seed_lot_id || null,
+        seeds_sown,
+        sowing_date: sowing_date || new Date().toISOString().split('T')[0],
+        germination_count: 0,
+        live_count: seeds_sown,
+        plant_type: 'ROOTSTOCK',
+        variety: plant_variety,
+        created_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: batchId,
+        movement_type: 'SOWING',
+        quantity_change: seeds_sown,
+        resulting_balance: seeds_sown,
+        reference_type: 'SOWING',
+        created_at: db.fn.now(),
+      });
+    });
+
+    return res.status(201).json({
+      batch: { id: batchId, serial_number, plant_variety, current_quantity: seeds_sown },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(['/harvest-scion', '/scion-harvest'], requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mother_tree_id, cuttings_harvested, harvest_date, technician_name, notes } = req.body;
+    const tree = await db('mother_trees').where({ id: mother_tree_id }).first();
+    const year = new Date().getFullYear();
+    const prefix = await identifierService.getPrefixForType('SCION');
+    const seq = await identifierService.getNextSequence(`SCION_${year}`);
+    const template = await identifierService.getSerialTemplate();
+    const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+    let batchId: any;
+    await db.transaction(async (trx) => {
+      const [idObj] = await trx('batches').insert({
+        batch_type: 'SCION',
+        serial_number,
+        plant_variety: tree ? tree.plant_variety : 'Scion Variety',
+        status: 'ACTIVE',
+        stage: 'READY_FOR_GRAFTING',
+        initial_quantity: cuttings_harvested,
+        current_quantity: cuttings_harvested,
+        location: 'Mist Storage',
+        notes: notes || 'Legacy scion harvest',
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
+
+      batchId = typeof idObj === 'object' ? idObj.id : idObj;
+
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: batchId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
+
+      await trx('inventory_movements').insert({
+        batch_id: batchId,
+        movement_type: 'SCION_HARVEST',
+        quantity_change: cuttings_harvested,
+        resulting_balance: cuttings_harvested,
+        reference_type: 'SCION_HARVEST',
+        created_at: db.fn.now(),
+      });
+    });
+
+    return res.status(201).json({
+      batch: { id: batchId, batchId, serial_number, current_quantity: cuttings_harvested },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/graft', requirePermission('INVENTORY_WRITE'), handleGrafting);
+
+router.post('/mortality', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { batch_id, dead_count, mortality_count, cause_of_death, reason, notes } = req.body;
+    const lossQty = Number(dead_count ?? mortality_count);
+    const reasonText = cause_of_death || reason || notes || 'Mortality loss';
+
+    const batch = await db('batches').where({ id: batch_id }).first();
+    if (!batch) return res.status(404).json({ error: 'Batch not found.' });
+    if (lossQty > batch.current_quantity) {
+      return res.status(400).json({ error: 'Loss exceeds available quantity.' });
+    }
+
+    const newQty = batch.current_quantity - lossQty;
+    await db.transaction(async (trx) => {
+      await trx('batches').where({ id: batch_id }).update({ current_quantity: newQty });
+      await trx('inventory_movements').insert({
+        batch_id,
+        movement_type: 'MORTALITY',
+        quantity_change: -lossQty,
+        resulting_balance: newQty,
+        reference_type: 'MORTALITY',
+        notes: reasonText,
+        created_at: db.fn.now(),
+      });
+    });
+
+    return res.status(200).json({ success: true, batch: { ...batch, current_quantity: newQty } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/promote-ready', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { grafted_batch_id, quantity, notes } = req.body;
+    const qty = Number(quantity);
+    const graft = await db('batches').where({ id: grafted_batch_id }).first();
+    if (!graft) return res.status(404).json({ error: 'Graft batch not found.' });
+
+    let rId: any;
+    let serial_number = '';
+    const year = new Date().getFullYear();
+    const prefix = await identifierService.getPrefixForType('READY_FOR_SALE');
+    const seq = await identifierService.getNextSequence(`RFS_${year}`);
+    const template = await identifierService.getSerialTemplate();
+    serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+
+    await db.transaction(async (trx) => {
+      await trx('batches').where({ id: grafted_batch_id }).update({
+        current_quantity: graft.current_quantity - qty,
+      });
+
+      const [idObj] = await trx('batches').insert({
+        batch_type: 'READY_FOR_SALE',
+        serial_number,
+        plant_variety: graft.plant_variety,
+        status: 'READY',
+        stage: 'READY_FOR_SALE',
+        initial_quantity: qty,
+        current_quantity: qty,
+        location: 'Sales Yard',
+        notes: notes || 'Promoted to sale',
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
+
+      rId = typeof idObj === 'object' ? idObj.id : idObj;
+
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: rId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
+
+      await trx('batch_lineage').insert({
+        batch_id: rId,
+        parent_batch_id: grafted_batch_id,
+        relationship_type: 'PROMOTED_FROM',
+        created_at: db.fn.now(),
+      });
+
+      await trx('ready_for_sale_promotions').insert({
+        grafted_batch_id,
+        ready_batch_id: rId,
+        quantity_promoted: qty,
+        promotion_date: new Date().toISOString().split('T')[0],
+        notes: notes || 'Promoted to Ready for Sale',
+        promoted_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
+    });
+
+    return res.status(201).json({
+      batch: { id: rId, rfsId: rId, batchId: rId, serial_number, current_quantity: qty },
+      readyBatch: { id: rId, serial_number, current_quantity: qty },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default router;

@@ -417,6 +417,120 @@ export async function up(): Promise<void> {
     });
   }
 
+  // Column updates for redesigned workflow
+  if (await db.schema.hasTable('batches')) {
+    const hasStage = await db.schema.hasColumn('batches', 'stage');
+    if (!hasStage) {
+      await db.schema.table('batches', (table) => {
+        table.string('stage').defaultTo('SOWN');
+        table.boolean('is_archived').defaultTo(false);
+      });
+    }
+  }
+
+  if (await db.schema.hasTable('sowing_records')) {
+    const hasPlantType = await db.schema.hasColumn('sowing_records', 'plant_type');
+    if (!hasPlantType) {
+      await db.schema.table('sowing_records', (table) => {
+        table.string('plant_type').defaultTo('ROOTSTOCK');
+        table.string('variety').nullable();
+        table.string('seed_source').nullable();
+        table.string('location').nullable();
+        table.integer('created_by_user_id').nullable();
+        table.timestamp('created_at').defaultTo(db.fn.now());
+      });
+    }
+  }
+
+  if (await db.schema.hasTable('orders')) {
+    const hasDiscount = await db.schema.hasColumn('orders', 'discount');
+    if (!hasDiscount) {
+      await db.schema.table('orders', (table) => {
+        table.float('discount').defaultTo(0);
+        table.string('payment_method').defaultTo('CASH');
+        table.string('customer_name').nullable();
+        table.string('customer_phone').nullable();
+      });
+    }
+  }
+
+  // 28. Germination Observations (Dated history of observations without overwriting)
+  if (!(await db.schema.hasTable('germination_observations'))) {
+    await db.schema.createTable('germination_observations', (table) => {
+      table.increments('id').primary();
+      table.integer('batch_id').references('id').inTable('batches').onDelete('CASCADE');
+      table.date('observation_date').notNullable();
+      table.integer('total_seeds_sown').notNullable();
+      table.integer('germinated_count').notNullable();
+      table.integer('non_germinated_count').defaultTo(0);
+      table.integer('damaged_dead_count').defaultTo(0);
+      table.integer('viable_seedlings_count').notNullable();
+      table.float('germination_rate').notNullable();
+      table.text('notes').nullable();
+      table.integer('recorded_by_user_id').nullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
+    });
+    await db.schema.table('germination_observations', (table) => {
+      table.index(['batch_id']);
+    });
+  }
+
+  // 29. Plant Growth Logs (Dated quantity changes, losses, and stage advancements)
+  if (!(await db.schema.hasTable('plant_growth_logs'))) {
+    await db.schema.createTable('plant_growth_logs', (table) => {
+      table.increments('id').primary();
+      table.integer('batch_id').references('id').inTable('batches').onDelete('CASCADE');
+      table.date('log_date').notNullable();
+      table.string('previous_status').notNullable();
+      table.string('new_status').notNullable();
+      table.integer('previous_quantity').notNullable();
+      table.integer('quantity_change').defaultTo(0);
+      table.integer('new_quantity').notNullable();
+      table.string('reason').nullable();
+      table.text('notes').nullable();
+      table.integer('recorded_by_user_id').nullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
+    });
+    await db.schema.table('plant_growth_logs', (table) => {
+      table.index(['batch_id']);
+    });
+  }
+
+  // 30. Curing & Survival Observations (Dated history of graft curing progress)
+  if (!(await db.schema.hasTable('curing_survival_observations'))) {
+    await db.schema.createTable('curing_survival_observations', (table) => {
+      table.increments('id').primary();
+      table.integer('batch_id').references('id').inTable('batches').onDelete('CASCADE');
+      table.date('observation_date').notNullable();
+      table.integer('total_grafts_attempted').notNullable();
+      table.integer('healed_count').notNullable();
+      table.integer('failed_count').defaultTo(0);
+      table.integer('dead_count').defaultTo(0);
+      table.integer('surviving_count').notNullable();
+      table.float('survival_rate').notNullable();
+      table.text('notes').nullable();
+      table.integer('recorded_by_user_id').nullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
+    });
+    await db.schema.table('curing_survival_observations', (table) => {
+      table.index(['batch_id']);
+    });
+  }
+
+  // 31. Ready-for-Sale Promotions (Explicit promotions from grafted batches into saleable inventory)
+  if (!(await db.schema.hasTable('ready_for_sale_promotions'))) {
+    await db.schema.createTable('ready_for_sale_promotions', (table) => {
+      table.increments('id').primary();
+      table.integer('grafted_batch_id').references('id').inTable('batches').onDelete('CASCADE');
+      table.integer('ready_batch_id').references('id').inTable('batches').onDelete('CASCADE');
+      table.integer('quantity_promoted').notNullable();
+      table.date('promotion_date').notNullable();
+      table.text('notes').nullable();
+      table.integer('promoted_by_user_id').nullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
+    });
+  }
+
   console.log('[MIGRATION] Database schema migration completed successfully.');
 }
 

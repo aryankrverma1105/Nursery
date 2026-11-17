@@ -130,7 +130,7 @@ export class IdentifierService {
   }
 
   /**
-   * Get template string from settings, e.g. {PREFIX}-{YYYY}-{SEQ:5}
+   * Get template string from settings, e.g. {PREFIX}-{YYYY}-{SEQ:4}
    */
   public async getSerialTemplate(): Promise<string> {
     try {
@@ -139,7 +139,7 @@ export class IdentifierService {
         return setting.value;
       }
     } catch {}
-    return '{PREFIX}-{YYYY}-{SEQ:5}';
+    return '{PREFIX}-{YYYY}-{SEQ:4}';
   }
 
   /**
@@ -148,9 +148,9 @@ export class IdentifierService {
   public async getPrefixForType(entityType: string): Promise<string> {
     const typeUpper = entityType.toUpperCase();
     const defaults: Record<string, string> = {
-      ROOTSTOCK: 'RS',
-      SCION: 'SC',
-      GRAFTED: 'GR',
+      ROOTSTOCK: 'ROOT',
+      SCION: 'SCION',
+      GRAFTED: 'GRAFT',
       READY_FOR_SALE: 'RFS',
       SEED_LOT: 'SEED',
       ORDER: 'SALE',

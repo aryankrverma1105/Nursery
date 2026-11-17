@@ -18,20 +18,19 @@ import NotFoundPage from './public/pages/NotFoundPage';
 import AppHeader from './app/components/AppHeader';
 import BottomNav from './app/components/BottomNav';
 import Sidebar from './app/components/Sidebar';
-import DashboardPage from './app/pages/DashboardPage';
-import StockPage from './app/pages/StockPage';
-import AddHubPage from './app/pages/AddHubPage';
-import MoreHubPage from './app/pages/MoreHubPage';
-import TracePage from './app/pages/TracePage';
-import SalesPage from './app/pages/SalesPage';
 
-// Wizards
-import SowingWizard from './app/pages/wizards/SowingWizard';
-import ScionWizard from './app/pages/wizards/ScionWizard';
-import GraftingWizard from './app/pages/wizards/GraftingWizard';
-import MortalityWizard from './app/pages/wizards/MortalityWizard';
-import PromoteWizard from './app/pages/wizards/PromoteWizard';
-import SaleWizard from './app/pages/wizards/SaleWizard';
+// 10 Redesigned Farm Workflow Pages
+import DashboardPage from './app/pages/DashboardPage';
+import SowingPage from './app/pages/SowingPage';
+import GerminationPage from './app/pages/GerminationPage';
+import PlantGrowthPage from './app/pages/PlantGrowthPage';
+import GraftingPage from './app/pages/GraftingPage';
+import CuringSurvivalPage from './app/pages/CuringSurvivalPage';
+import ReadyForSalePage from './app/pages/ReadyForSalePage';
+import SellingPage from './app/pages/SellingPage';
+import TraceabilityPage from './app/pages/TraceabilityPage';
+import ReportsPage from './app/pages/ReportsPage';
+import MoreHubPage from './app/pages/MoreHubPage';
 
 // Admin CMS Pages
 import CmsSectionsPage from './app/pages/cms/CmsSectionsPage';
@@ -158,7 +157,7 @@ export const App: React.FC = () => {
           }
         />
 
-        {/* PRIVATE APP ROUTES (MOBILE-FIRST) */}
+        {/* 10 REDESIGNED FARM WORKFLOW ROUTES */}
         <Route
           path="/app"
           element={
@@ -170,21 +169,91 @@ export const App: React.FC = () => {
           }
         />
         <Route
-          path="/app/stock"
+          path="/app/sowing"
           element={
             <ProtectedRoute>
               <PrivateLayout>
-                <StockPage />
+                <SowingPage />
               </PrivateLayout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/app/add"
+          path="/app/germination"
           element={
             <ProtectedRoute>
               <PrivateLayout>
-                <AddHubPage />
+                <GerminationPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/plant-growth"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <PlantGrowthPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/grafting"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <GraftingPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/curing"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <CuringSurvivalPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/ready-for-sale"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <ReadyForSalePage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/selling"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
+              <PrivateLayout>
+                <SellingPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/trace"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <TraceabilityPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/reports"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
+              <PrivateLayout>
+                <ReportsPage />
               </PrivateLayout>
             </ProtectedRoute>
           }
@@ -199,88 +268,12 @@ export const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/app/trace"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <TracePage />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/sales"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
-              <PrivateLayout>
-                <SalesPage />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
 
-        {/* DATA ENTRY WIZARDS */}
-        <Route
-          path="/app/wizard/sowing"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <SowingWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/wizard/scion"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <ScionWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/wizard/grafting"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <GraftingWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/wizard/mortality"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <MortalityWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/wizard/promote"
-          element={
-            <ProtectedRoute>
-              <PrivateLayout>
-                <PromoteWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/app/wizard/sale"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
-              <PrivateLayout>
-                <SaleWizard />
-              </PrivateLayout>
-            </ProtectedRoute>
-          }
-        />
+        {/* Legacy operational route redirects */}
+        <Route path="/app/stock" element={<Navigate to="/app/ready-for-sale" replace />} />
+        <Route path="/app/sales" element={<Navigate to="/app/selling" replace />} />
+        <Route path="/app/add" element={<Navigate to="/app/sowing" replace />} />
+        <Route path="/app/wizard/*" element={<Navigate to="/app" replace />} />
 
         {/* ADMIN CMS ROUTES */}
         <Route

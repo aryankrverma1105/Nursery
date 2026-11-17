@@ -81,7 +81,7 @@ describe('IdentifierService & Pluggable Strategies', () => {
       const result = await service.generate('GRAFTED', 9999);
       expect(result.id).toBeDefined();
       expect(result.scheme).toBe('SERIAL');
-      expect(result.value).toMatch(/^GR-\d{4}-\d{5}$/);
+      expect(result.value).toMatch(/^(GRAFT|GR)-\d{4}-\d{4,5}$/);
 
       // Verify row in database
       const row = await db('identifiers').where({ value: result.value }).first();

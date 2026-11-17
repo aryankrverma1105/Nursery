@@ -38,8 +38,14 @@ router.post('/customers', requirePermission('SALES_WRITE'), async (req: Request,
 
 // 2. ORDERS & SALES RECORDING (Atomic Ledger Batch Deductions)
 const OrderSchema = z.object({
-  customer_id: z.number(),
-  order_date: z.string(),
+  customer_id: z.number().optional().nullable(),
+  customer_name: z.string().optional().nullable(),
+  customer_phone: z.string().optional().nullable(),
+  order_date: z.string().default(() => new Date().toISOString().split('T')[0]),
+  batch_id: z.number().optional(),
+  quantity: z.number().positive().optional(),
+  unit_price: z.number().positive().optional(),
+  discount: z.number().min(0).default(0),
   items: z.array(
     z.object({
       batch_id: z.number(),
@@ -47,8 +53,9 @@ const OrderSchema = z.object({
       quantity: z.number().positive(),
       unit_price: z.number().positive(),
     })
-  ).min(1, 'Order must contain at least one plant batch item'),
-  payment_mode: z.enum(['CASH', 'BANK_TRANSFER', 'UPI', 'CHEQUE', 'CREDIT']),
+  ).optional(),
+  payment_mode: z.enum(['CASH', 'BANK_TRANSFER', 'UPI', 'CHEQUE', 'CREDIT', 'OTHER']).default('CASH'),
+  payment_method: z.string().optional(),
   payment_status: z.enum(['PENDING', 'PAID', 'PARTIAL']).default('PAID'),
   payment_notes: z.string().optional(),
   notes: z.string().optional(),
@@ -58,24 +65,67 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
   try {
     const data = OrderSchema.parse(req.body);
 
+    // Normalize items
+    let orderItems = data.items || [];
+    if (orderItems.length === 0 && data.batch_id && data.quantity && data.unit_price) {
+      orderItems = [{
+        batch_id: data.batch_id,
+        quantity: data.quantity,
+        unit_price: data.unit_price,
+        product_id: null,
+      }];
+    }
+
+    if (orderItems.length === 0) {
+      return res.status(400).json({ error: 'Order must contain at least one plant batch item with quantity and price.' });
+    }
+
     const result = await db.transaction(async (trx) => {
-      // 1. Generate Invoice Number
+      // Find or create customer
+      let effectiveCustomerId = data.customer_id;
+      const custName = (data.customer_name || 'Walk-in Customer').trim();
+      const custPhone = data.customer_phone?.trim() || '';
+
+      if (!effectiveCustomerId) {
+        let existingCust = await trx('customers').where({ name: custName }).first();
+        if (!existingCust && custPhone) {
+          existingCust = await trx('customers').where({ phone: custPhone }).first();
+        }
+        if (existingCust) {
+          effectiveCustomerId = existingCust.id;
+        } else {
+          const [newCust] = await trx('customers').insert({
+            name: custName,
+            phone: custPhone || null,
+            created_at: db.fn.now(),
+          }).returning('id');
+          effectiveCustomerId = typeof newCust === 'object' ? newCust.id : newCust;
+        }
+      }
+
+      // 1. Generate Invoice Number (e.g. SALE-2026-0001)
       const year = new Date().getFullYear();
       const prefix = await identifierService.getPrefixForType('ORDER');
       const seq = await identifierService.getNextSequence(`SALE_${year}`);
       const template = await identifierService.getSerialTemplate();
       const invoice_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
 
-      // Compute total
-      const totalAmount = data.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+      // Compute total and discount
+      const subTotal = orderItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+      const discount = Number(data.discount) || 0;
+      const totalAmount = Math.max(0, subTotal - discount);
 
       // 2. Insert Order
       const [orderIdObj] = await trx('orders').insert({
         invoice_number,
-        customer_id: data.customer_id,
+        customer_id: effectiveCustomerId,
+        customer_name: custName,
+        customer_phone: custPhone || null,
         order_date: data.order_date,
         total_amount: totalAmount,
-        payment_mode: data.payment_mode,
+        discount: discount,
+        payment_mode: data.payment_mode || (data.payment_method?.toUpperCase() as any) || 'CASH',
+        payment_method: data.payment_method || data.payment_mode,
         payment_status: data.payment_status,
         payment_notes: data.payment_notes,
         status: 'CONFIRMED',
@@ -97,7 +147,7 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
       });
 
       // 4. Process each item: Row lock batch, verify stock, deduct from batch, write ledger movement
-      for (const item of data.items) {
+      for (const item of orderItems) {
         const batch = await trx('batches').where({ id: item.batch_id }).forUpdate().first();
         if (!batch) {
           throw new Error(`Batch ID #${item.batch_id} not found.`);
@@ -115,6 +165,7 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
         await trx('batches').where({ id: batch.id }).update({
           current_quantity: newBalance,
           status: newBalance === 0 ? 'SOLD_OUT' : batch.status,
+          stage: newBalance === 0 ? 'COMPLETED' : (batch.stage || 'READY_FOR_SALE'),
           updated_at: db.fn.now(),
         });
 
@@ -142,7 +193,7 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
         });
       }
 
-      return { orderId, invoice_number, totalAmount };
+      return { orderId, invoice_number, subTotal, discount, totalAmount };
     });
 
     await AuditService.log({
@@ -155,7 +206,7 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
     });
 
     return res.status(201).json({
-      message: `Sale recorded. Invoice ${result.invoice_number} created for ₹${result.totalAmount}.`,
+      message: `Sale recorded successfully. Invoice ${result.invoice_number} created for ₹${result.totalAmount}.`,
       order: result,
     });
   } catch (err: any) {
@@ -167,9 +218,30 @@ router.post('/orders', requirePermission('SALES_WRITE'), async (req: Request, re
 router.get('/orders', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const orders = await db('orders')
-      .join('customers', 'orders.customer_id', 'customers.id')
-      .select('orders.*', 'customers.name as customer_name', 'customers.phone as customer_phone')
+      .leftJoin('customers', 'orders.customer_id', 'customers.id')
+      .select(
+        'orders.*',
+        db.raw('COALESCE(orders.customer_name, customers.name, "Walk-in Buyer") as display_customer_name'),
+        db.raw('COALESCE(orders.customer_phone, customers.phone, "") as display_customer_phone')
+      )
       .orderBy('orders.created_at', 'desc');
+
+    // Attach items for each order
+    for (const order of orders) {
+      const items = await db('order_items')
+        .join('batches', 'order_items.batch_id', 'batches.id')
+        .where('order_items.order_id', order.id)
+        .select(
+          'order_items.id',
+          'order_items.batch_id',
+          'order_items.quantity',
+          'order_items.unit_price',
+          'order_items.total_price',
+          'batches.serial_number as batch_code',
+          'batches.plant_variety as variety'
+        );
+      order.items = items;
+    }
 
     return res.json({ orders });
   } catch (err) {

@@ -90,6 +90,18 @@
     "rootstockOrigin": "Rootstock Germination",
     "curingHistory": "Curing & Survival Rate",
     "quarantineAlert": "THIS BATCH IS CURRENTLY UNDER QUARANTINE."
+  },
+  "workflow": {
+    "dashboard": "Dashboard",
+    "sowing": "Sowing",
+    "germination": "Germination",
+    "plantGrowth": "Plant Growth",
+    "grafting": "Grafting",
+    "curing": "Curing / Survival",
+    "readyForSale": "Ready for Sale",
+    "selling": "Selling",
+    "traceability": "Traceability",
+    "reports": "Reports"
   }
 }
 

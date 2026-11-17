@@ -25,79 +25,407 @@ async function getAllDescendantBatchIds(batchId: number): Promise<number[]> {
   return Array.from(new Set(allIds));
 }
 
-// 1. TRACEABILITY PEDIGREE GRAPH
+// Helper to assemble full workflow lineage backtracking for any batch
+async function assembleWorkflowTimeline(targetBatchId: number) {
+  const batch = await db('batches').where({ id: targetBatchId }).first();
+  if (!batch) return null;
+
+  let rfsBatch: any = null;
+  let graftBatch: any = null;
+  let rootstockBatch: any = null;
+  let scionBatch: any = null;
+
+  if (batch.batch_type === 'READY_FOR_SALE') {
+    rfsBatch = batch;
+    const parentLinks = await db('batch_lineage')
+      .join('batches', 'batch_lineage.parent_batch_id', 'batches.id')
+      .where('batch_lineage.batch_id', batch.id)
+      .select('batches.*', 'batch_lineage.relationship_type');
+
+    for (const p of parentLinks) {
+      if (p.batch_type === 'GRAFTED') {
+        graftBatch = p;
+        break;
+      }
+    }
+  } else if (batch.batch_type === 'GRAFTED') {
+    graftBatch = batch;
+    // Check if there is a child RFS batch
+    const childLinks = await db('batch_lineage')
+      .join('batches', 'batch_lineage.batch_id', 'batches.id')
+      .where('batch_lineage.parent_batch_id', batch.id)
+      .select('batches.*');
+    for (const c of childLinks) {
+      if (c.batch_type === 'READY_FOR_SALE') {
+        rfsBatch = c;
+        break;
+      }
+    }
+  } else if (batch.batch_type === 'ROOTSTOCK') {
+    rootstockBatch = batch;
+    // Check for child graft
+    const childLinks = await db('batch_lineage')
+      .join('batches', 'batch_lineage.batch_id', 'batches.id')
+      .where('batch_lineage.parent_batch_id', batch.id)
+      .select('batches.*');
+    for (const c of childLinks) {
+      if (c.batch_type === 'GRAFTED') {
+        graftBatch = c;
+        break;
+      }
+    }
+  } else if (batch.batch_type === 'SCION') {
+    scionBatch = batch;
+    // Check for child graft
+    const childLinks = await db('batch_lineage')
+      .join('batches', 'batch_lineage.batch_id', 'batches.id')
+      .where('batch_lineage.parent_batch_id', batch.id)
+      .select('batches.*');
+    for (const c of childLinks) {
+      if (c.batch_type === 'GRAFTED') {
+        graftBatch = c;
+        break;
+      }
+    }
+  }
+
+  // If we have a graft batch, find rootstock & scion parents if not already known
+  if (graftBatch) {
+    const parents = await db('batch_lineage')
+      .join('batches', 'batch_lineage.parent_batch_id', 'batches.id')
+      .where('batch_lineage.batch_id', graftBatch.id)
+      .select('batches.*', 'batch_lineage.relationship_type');
+
+    for (const p of parents) {
+      if (p.relationship_type === 'ROOTSTOCK' || p.batch_type === 'ROOTSTOCK') {
+        rootstockBatch = p;
+      } else if (p.relationship_type === 'SCION' || p.batch_type === 'SCION') {
+        scionBatch = p;
+      }
+    }
+  }
+
+  // Gather Sowing & Germination for Rootstock
+  let rootstockOrigin: any = null;
+  if (rootstockBatch) {
+    const sowing = await db('sowing_records')
+      .leftJoin('seed_lots', 'sowing_records.seed_lot_id', 'seed_lots.id')
+      .leftJoin('suppliers', 'seed_lots.supplier_id', 'suppliers.id')
+      .where('sowing_records.batch_id', rootstockBatch.id)
+      .select(
+        'sowing_records.*',
+        'seed_lots.lot_code',
+        'seed_lots.plant_variety as seed_variety',
+        'suppliers.name as seed_supplier_name'
+      )
+      .first();
+
+    const germObs = await db('germination_observations')
+      .where({ batch_id: rootstockBatch.id })
+      .orderBy('observation_date', 'asc');
+
+    const growthLogs = await db('plant_growth_logs')
+      .where({ batch_id: rootstockBatch.id })
+      .orderBy('log_date', 'asc');
+
+    const totalSown = sowing ? (sowing.number_of_seeds_sown || sowing.seed_count || rootstockBatch.initial_quantity) : rootstockBatch.initial_quantity;
+    const latestGerm = germObs.length > 0 ? germObs[germObs.length - 1] : null;
+    const germinatedQty = latestGerm ? latestGerm.germinated_seeds : (rootstockBatch.current_quantity || 0);
+    const germRate = totalSown > 0 ? Math.min(100, Math.round((germinatedQty / totalSown) * 100)) : 100;
+
+    rootstockOrigin = {
+      batch: rootstockBatch,
+      sowing: sowing ? {
+        sowing_date: sowing.sowing_date,
+        variety: sowing.variety || rootstockBatch.plant_variety,
+        plant_type: sowing.plant_type || 'Rootstock',
+        seed_source: sowing.seed_source || sowing.seed_supplier_name || 'In-House Mother Stock',
+        seeds_sown: totalSown,
+        location: sowing.location || rootstockBatch.location_nursery_bed,
+        notes: sowing.notes,
+      } : {
+        sowing_date: rootstockBatch.created_at,
+        variety: rootstockBatch.plant_variety,
+        plant_type: 'Rootstock',
+        seed_source: 'In-House Mother Stock',
+        seeds_sown: totalSown,
+        location: rootstockBatch.location_nursery_bed,
+        notes: null,
+      },
+      germinationObservations: germObs,
+      growthLogs,
+      germinationRate: germRate,
+      remainingViable: rootstockBatch.current_quantity,
+    };
+  }
+
+  // Gather Sowing & Germination for Scion
+  let scionOrigin: any = null;
+  if (scionBatch) {
+    const sowing = await db('sowing_records')
+      .leftJoin('seed_lots', 'sowing_records.seed_lot_id', 'seed_lots.id')
+      .leftJoin('suppliers', 'seed_lots.supplier_id', 'suppliers.id')
+      .where('sowing_records.batch_id', scionBatch.id)
+      .select(
+        'sowing_records.*',
+        'seed_lots.lot_code',
+        'seed_lots.plant_variety as seed_variety',
+        'suppliers.name as seed_supplier_name'
+      )
+      .first();
+
+    const germObs = await db('germination_observations')
+      .where({ batch_id: scionBatch.id })
+      .orderBy('observation_date', 'asc');
+
+    const growthLogs = await db('plant_growth_logs')
+      .where({ batch_id: scionBatch.id })
+      .orderBy('log_date', 'asc');
+
+    const totalSown = sowing ? (sowing.number_of_seeds_sown || sowing.seed_count || scionBatch.initial_quantity) : scionBatch.initial_quantity;
+    const latestGerm = germObs.length > 0 ? germObs[germObs.length - 1] : null;
+    const germinatedQty = latestGerm ? latestGerm.germinated_seeds : (scionBatch.current_quantity || 0);
+    const germRate = totalSown > 0 ? Math.min(100, Math.round((germinatedQty / totalSown) * 100)) : 100;
+
+    scionOrigin = {
+      batch: scionBatch,
+      sowing: sowing ? {
+        sowing_date: sowing.sowing_date,
+        variety: sowing.variety || scionBatch.plant_variety,
+        plant_type: sowing.plant_type || 'Scion',
+        seed_source: sowing.seed_source || sowing.seed_supplier_name || 'Verified Mother Stock',
+        seeds_sown: totalSown,
+        location: sowing.location || scionBatch.location_nursery_bed,
+        notes: sowing.notes,
+      } : {
+        sowing_date: scionBatch.created_at,
+        variety: scionBatch.plant_variety,
+        plant_type: 'Scion',
+        seed_source: 'Verified Mother Stock',
+        seeds_sown: totalSown,
+        location: scionBatch.location_nursery_bed,
+        notes: null,
+      },
+      germinationObservations: germObs,
+      growthLogs,
+      germinationRate: germRate,
+      remainingViable: scionBatch.current_quantity,
+    };
+  }
+
+  // Grafting & Curing Details
+  let graftingDetails: any = null;
+  let curingObservations: any[] = [];
+  if (graftBatch) {
+    const graftRec = await db('grafting_records')
+      .where('batch_id', graftBatch.id)
+      .first();
+
+    curingObservations = await db('curing_survival_observations')
+      .where({ batch_id: graftBatch.id })
+      .orderBy('observation_date', 'asc');
+
+    // Also include legacy curing logs if table exists
+    const legacyCuring = await db('curing_mortality_records')
+      .where({ batch_id: graftBatch.id })
+      .orderBy('recorded_at', 'asc');
+
+    graftingDetails = {
+      batch: graftBatch,
+      grafting_record: graftRec || null,
+      grafting_date: graftRec?.grafting_date || graftBatch.created_at,
+      technician: graftRec?.technician_name || 'Lead Horticulturist',
+      grafting_method: graftRec?.grafting_method || 'Wedge / Cleft Graft',
+      attempts_count: graftRec?.attempted_count || graftBatch.initial_quantity,
+      success_count: graftRec?.success_count || graftBatch.current_quantity,
+    };
+  }
+
+  // Ready for Sale Details
+  let rfsDetails: any = null;
+  if (rfsBatch) {
+    const promo = await db('ready_for_sale_promotions')
+      .where({ ready_batch_id: rfsBatch.id })
+      .first();
+
+    rfsDetails = {
+      batch: rfsBatch,
+      promotion: promo || null,
+      ready_date: promo?.promotion_date || promo?.created_at || rfsBatch.created_at,
+      quantity_ready: rfsBatch.initial_quantity,
+      quantity_available: rfsBatch.current_quantity,
+      status: rfsBatch.status,
+    };
+  }
+
+  // Sales records for RFS batch or graft batch
+  const batchIdsToFindSales = [batch.id];
+  if (rfsBatch) batchIdsToFindSales.push(rfsBatch.id);
+  if (graftBatch) batchIdsToFindSales.push(graftBatch.id);
+
+  const salesItems = await db('order_items')
+    .join('orders', 'order_items.order_id', 'orders.id')
+    .leftJoin('customers', 'orders.customer_id', 'customers.id')
+    .whereIn('order_items.batch_id', Array.from(new Set(batchIdsToFindSales)))
+    .select(
+      'orders.id as order_id',
+      'orders.invoice_number',
+      'orders.order_date',
+      'orders.total_amount',
+      'orders.discount',
+      'orders.payment_mode',
+      'orders.payment_status',
+      'orders.customer_name as inline_cust_name',
+      'orders.customer_phone as inline_cust_phone',
+      'customers.name as cust_name',
+      'customers.phone as cust_phone',
+      'order_items.quantity as sold_quantity',
+      'order_items.unit_price',
+      'order_items.total_price'
+    )
+    .orderBy('orders.order_date', 'desc');
+
+  const formattedSales = salesItems.map((s) => ({
+    order_id: s.order_id,
+    invoice_number: s.invoice_number,
+    order_date: s.order_date,
+    customer_name: s.inline_cust_name || s.cust_name || 'Direct Walk-in Buyer',
+    customer_phone: s.inline_cust_phone || s.cust_phone || 'N/A',
+    sold_quantity: s.sold_quantity,
+    unit_price: s.unit_price,
+    total_price: s.total_price,
+    discount: s.discount || 0,
+    payment_mode: s.payment_mode,
+    payment_status: s.payment_status,
+  }));
+
+  return {
+    searchedBatch: batch,
+    salesRecords: formattedSales,
+    readyForSale: rfsDetails,
+    grafting: graftingDetails,
+    curingObservations,
+    rootstockOrigin,
+    scionOrigin,
+  };
+}
+
+// 1. TRACEABILITY PEDIGREE GRAPH & WORKFLOW TIMELINE
 router.get('/:code', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { code } = req.params;
     const cleanCode = code.trim().toUpperCase();
 
-    // 1. Pluggable lookup
-    const identifier = await identifierService.lookup(cleanCode);
-    if (!identifier) {
-      return res.status(404).json({ error: `Identifier "${cleanCode}" not found in registry.` });
+    // 1. Try identifier lookup first
+    let identifier = await identifierService.lookup(cleanCode);
+
+    // If not found in identifiers table, check directly in batches by serial_number
+    let batchId: number | null = null;
+    let orderId: number | null = null;
+
+    if (identifier) {
+      if (identifier.entity_type === 'BATCH') {
+        batchId = identifier.entity_id;
+      } else if (identifier.entity_type === 'ORDER') {
+        orderId = identifier.entity_id;
+      }
+    } else {
+      // Direct batch serial match
+      const directBatch = await db('batches').where({ serial_number: cleanCode }).first();
+      if (directBatch) {
+        batchId = directBatch.id;
+        identifier = {
+          id: directBatch.id,
+          entity_type: 'BATCH',
+          entity_id: directBatch.id,
+          scheme: 'SERIAL',
+          value: directBatch.serial_number,
+          status: 'ACTIVE',
+          issued_at: directBatch.created_at,
+        } as any;
+      } else {
+        // Direct order invoice match
+        const directOrder = await db('orders').where({ invoice_number: cleanCode }).first();
+        if (directOrder) {
+          orderId = directOrder.id;
+          identifier = {
+            id: directOrder.id,
+            entity_type: 'ORDER',
+            entity_id: directOrder.id,
+            scheme: 'SERIAL',
+            value: directOrder.invoice_number,
+            status: 'ACTIVE',
+            issued_at: directOrder.created_at,
+          } as any;
+        }
+      }
     }
 
-    if (identifier.entity_type !== 'BATCH') {
-      // If code is SEED_LOT or ORDER, return entity info
+    if (!identifier && !batchId && !orderId) {
+      return res.status(404).json({ error: `Identifier or code "${cleanCode}" not found in farm registry.` });
+    }
+
+    // If it's an Order / Invoice code:
+    if (orderId) {
+      const order = await db('orders').where({ id: orderId }).first();
+      const orderItems = await db('order_items').where({ order_id: orderId });
+      const firstBatchId = orderItems.length > 0 ? orderItems[0].batch_id : null;
+
+      let workflowTimeline: any = null;
+      if (firstBatchId) {
+        workflowTimeline = await assembleWorkflowTimeline(firstBatchId);
+      }
+
       return res.json({
-        type: identifier.entity_type,
+        type: 'ORDER',
         identifier,
-        message: `Code maps to ${identifier.entity_type} #${identifier.entity_id}`,
+        order,
+        orderItems,
+        workflowTimeline,
       });
     }
 
-    const batch = await db('batches').where({ id: identifier.entity_id }).first();
+    // It's a batch
+    if (!batchId) {
+      return res.status(404).json({ error: 'Batch record not found.' });
+    }
+
+    const batch = await db('batches').where({ id: batchId }).first();
     if (!batch) {
       return res.status(404).json({ error: 'Batch record missing.' });
     }
 
-    // 2. Parents Lineage (Ascendants)
+    // Parents Lineage (Ascendants)
     const parentLinks = await db('batch_lineage')
       .join('batches', 'batch_lineage.parent_batch_id', 'batches.id')
       .where('batch_lineage.batch_id', batch.id)
       .select('batch_lineage.relationship_type', 'batches.*');
 
-    // 3. Children Lineage (Descendants)
+    // Children Lineage (Descendants)
     const childLinks = await db('batch_lineage')
       .join('batches', 'batch_lineage.batch_id', 'batches.id')
       .where('batch_lineage.parent_batch_id', batch.id)
       .select('batch_lineage.relationship_type', 'batches.*');
 
-    // 4. Sowing Record (if rootstock or derived)
-    const sowingRecord = await db('sowing_records')
-      .leftJoin('seed_lots', 'sowing_records.seed_lot_id', 'seed_lots.id')
-      .leftJoin('suppliers', 'seed_lots.supplier_id', 'suppliers.id')
-      .where('sowing_records.batch_id', batch.id)
-      .select('sowing_records.*', 'seed_lots.lot_code', 'seed_lots.plant_variety as seed_variety', 'suppliers.name as supplier_name')
-      .first();
-
-    // 5. Scion Harvest Record (if scion or donor tree)
-    const scionRecord = await db('scion_harvest_records')
-      .leftJoin('mother_trees', 'scion_harvest_records.mother_tree_id', 'mother_trees.id')
-      .where('scion_harvest_records.batch_id', batch.id)
-      .select('scion_harvest_records.*', 'mother_trees.tree_code', 'mother_trees.location_block', 'mother_trees.age_years')
-      .first();
-
-    // 6. Grafting Record (if grafted)
+    // Legacy direct records for compatibility
     const graftingRecord = await db('grafting_records')
       .leftJoin('mother_trees', 'grafting_records.mother_tree_id', 'mother_trees.id')
       .where('grafting_records.batch_id', batch.id)
       .select('grafting_records.*', 'mother_trees.tree_code as donor_tree_code')
       .first();
 
-    // 7. Curing & Mortality Logs
-    const curingLogs = await db('curing_mortality_records')
-      .where({ batch_id: batch.id })
-      .orderBy('recorded_at', 'desc');
+    const sowingRecord = await db('sowing_records')
+      .where('sowing_records.batch_id', batch.id)
+      .first();
 
-    // 8. Sales History (if any sold from this batch)
-    const salesItems = await db('order_items')
-      .join('orders', 'order_items.order_id', 'orders.id')
-      .join('customers', 'orders.customer_id', 'customers.id')
-      .where('order_items.batch_id', batch.id)
-      .select('orders.invoice_number', 'orders.order_date', 'customers.name as customer_name', 'order_items.quantity', 'order_items.unit_price');
+    const scionRecord = await db('scion_harvest_records')
+      .where('scion_harvest_records.batch_id', batch.id)
+      .first();
 
-    // 9. All Identifiers associated with this batch
+    // Assemble the complete Phase H 7-stage backtracking timeline
+    const workflowTimeline = await assembleWorkflowTimeline(batch.id);
+
+    // All Identifiers associated with this batch
     const allIdentifiers = await db('identifiers')
       .where({ entity_type: 'BATCH', entity_id: batch.id })
       .orderBy('issued_at', 'asc');
@@ -107,11 +435,10 @@ router.get('/:code', async (req: Request, res: Response, next: NextFunction) => 
       batch,
       parents: parentLinks,
       children: childLinks,
+      graftingRecord: graftingRecord || null,
       sowingRecord: sowingRecord || null,
       scionRecord: scionRecord || null,
-      graftingRecord: graftingRecord || null,
-      curingLogs,
-      salesItems,
+      workflowTimeline,
       allIdentifiers,
     });
   } catch (err) {
@@ -267,4 +594,3 @@ router.get('/label/:code', async (req: Request, res: Response, next: NextFunctio
 });
 
 export default router;
-
