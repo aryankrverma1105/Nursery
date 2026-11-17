@@ -153,6 +153,10 @@ export class IdentifierService {
       GRAFTED: 'GRAFT',
       READY_FOR_SALE: 'RFS',
       SEED_LOT: 'SEED',
+      SOWING: 'SEED',
+      SEEDLING: 'SEED',
+      BOTH: 'SEED',
+      SEED: 'SEED',
       ORDER: 'SALE',
       PRODUCT: 'PRD',
     };

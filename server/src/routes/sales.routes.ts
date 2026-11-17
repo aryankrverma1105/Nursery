@@ -278,96 +278,232 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Invoice ${order.invoice_number}</title>
+        <title>Invoice ${order.invoice_number} - Deep Root Farms</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 40px; color: #1c1917; max-width: 850px; margin: 0 auto; font-size: 15px; line-height: 1.5; }
-          .header { display: flex; justify-content: space-between; border-bottom: 3px solid #244930; padding-bottom: 20px; }
-          .farm-name { font-size: 26px; font-weight: 800; color: #244930; letter-spacing: -0.5px; }
-          .invoice-tag { font-size: 26px; font-weight: 900; color: #44403c; text-align: right; }
-          .details { display: grid; grid-template-columns: 1fr 1fr; margin: 24px 0; gap: 20px; }
-          .box { background: #fbf9f6; padding: 18px; border-radius: 12px; border: 1px solid #d6d3d1; }
-          table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 15px; }
-          th { background: #244930; color: #fff; text-align: left; padding: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
-          td { padding: 12px; border-bottom: 1px solid #e7e5e4; }
-          .total-box { margin-top: 24px; text-align: right; font-size: 22px; font-weight: 800; }
-          .footer { margin-top: 40px; border-top: 2px dashed #a8a29e; padding-top: 20px; font-size: 13px; color: #78716c; text-align: center; line-height: 1.6; }
-          .no-print { margin-bottom: 24px; text-align: right; }
-          .print-btn {
+          * { box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 30px 20px;
+            color: #1c1917;
+            background: #f5f5f4;
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.5;
+          }
+          .invoice-card {
+            background: #ffffff;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e7e5e4;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 3px solid #244930;
+            padding-bottom: 24px;
+          }
+          .farm-name {
+            font-size: 28px;
+            font-weight: 900;
+            color: #244930;
+            letter-spacing: -0.5px;
+          }
+          .invoice-tag {
+            font-size: 28px;
+            font-weight: 900;
+            color: #1c1917;
+            text-align: right;
+          }
+          .details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin: 28px 0;
+            gap: 24px;
+          }
+          .box {
+            background: #fbf9f6;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1.5px solid #e7e5e4;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 28px;
+            font-size: 15px;
+          }
+          th {
             background: #244930;
             color: #ffffff;
-            font-size: 16px;
-            font-weight: 700;
-            padding: 12px 28px;
-            border: 2px solid #183321;
+            text-align: left;
+            padding: 14px 16px;
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e7e5e4;
+          }
+          .total-box {
+            margin-top: 28px;
+            text-align: right;
+            font-size: 24px;
+            font-weight: 900;
+            padding: 16px 20px;
+            background: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 12px;
+          }
+          .footer {
+            margin-top: 40px;
+            border-top: 2px dashed #a8a29e;
+            padding-top: 24px;
+            font-size: 14px;
+            color: #57534e;
+            text-align: center;
+            line-height: 1.6;
+          }
+          .no-print-bar {
+            max-width: 850px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 12px 18px;
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #e7e5e4;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+          }
+          .btn-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+          }
+          .action-btn {
+            font-size: 15px;
+            font-weight: 800;
+            padding: 12px 24px;
             border-radius: 10px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             transition: all 0.2s;
+            text-decoration: none;
           }
-          .print-btn:hover {
+          .btn-pdf {
+            background: #244930;
+            color: #ffffff;
+            border: 2px solid #183321;
+            box-shadow: 0 4px 10px rgba(36, 73, 48, 0.25);
+          }
+          .btn-pdf:hover {
             background: #183321;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+            transform: translateY(-1px);
           }
-          .print-btn:active {
-            transform: translateY(0);
+          .btn-print {
+            background: #ffffff;
+            color: #244930;
+            border: 2px solid #244930;
+          }
+          .btn-print:hover {
+            background: #f0fdf4;
+            transform: translateY(-1px);
           }
           @media print {
-            body { padding: 0; margin: 0; }
-            .no-print, button { display: none !important; }
-            @page { margin: 1.5cm; }
+            body {
+              padding: 0;
+              margin: 0;
+              background: #ffffff;
+            }
+            .invoice-card {
+              border: none;
+              box-shadow: none;
+              padding: 0;
+              max-width: 100%;
+            }
+            .no-print-bar {
+              display: none !important;
+            }
+            @page {
+              margin: 1.2cm;
+              size: auto;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="no-print">
-          <button id="printBtn" type="button" class="print-btn" onclick="window.focus(); window.print(); return false;">
-            🖨️ Print / Save as PDF
-          </button>
-        </div>
-        <div class="header">
-          <div>
-            <div class="farm-name">${settingsMap.site_name || '[SAMPLE DATA] Deep Root Farms'}</div>
-            <div style="font-size: 13px; color: #57534e; margin-top: 4px;">${settingsMap.contact_address || 'Agri Zone'}</div>
-            <div style="font-size: 13px; color: #57534e;">Phone: ${settingsMap.contact_phone || '+91 98765 43210'}</div>
-            <div style="font-size: 12px; color: #15803d; font-weight: bold; margin-top: 4px;">Certified Botanical Material</div>
+        <div class="no-print-bar">
+          <div style="font-weight: 800; color: #244930; font-size: 16px;">
+            📄 Tax Invoice #${order.invoice_number}
           </div>
-          <div class="invoice-tag">
-            TAX INVOICE
-            <div style="font-size: 15px; font-family: monospace; margin-top: 4px; color: #1c1917;">${order.invoice_number}</div>
-            <div style="font-size: 13px; color: #57534e; font-weight: normal;">Date: ${order.order_date}</div>
+          <div class="btn-group">
+            <button id="downloadPdfBtn" type="button" class="action-btn btn-pdf" onclick="saveAsPdf()">
+              💾 Save / Download PDF
+            </button>
+            <button id="printBtn" type="button" class="action-btn btn-print" onclick="window.focus(); window.print();">
+              🖨️ Print
+            </button>
           </div>
         </div>
 
-        <div class="details">
-          <div class="box">
-            <div style="font-size: 12px; text-transform: uppercase; color: #78716c; font-weight: bold;">Billed To:</div>
-            <div style="font-size: 16px; font-weight: bold; margin-top: 4px;">${order.customer_name}</div>
-            <div style="font-size: 13px; color: #57534e; margin-top: 2px;">${order.customer_address || 'N/A'}</div>
-            <div style="font-size: 13px; color: #57534e;">Phone: ${order.customer_phone || 'N/A'}</div>
-            ${order.gst_or_tax_id ? `<div style="font-size: 12px; color: #57534e;">GSTIN: ${order.gst_or_tax_id}</div>` : ''}
+        <div id="printableArea" class="invoice-card">
+          <div class="header">
+            <div>
+              <div class="farm-name">${settingsMap.site_name || 'Deep Root Farms'}</div>
+              <div style="font-size: 14px; color: #57534e; margin-top: 4px;">${settingsMap.contact_address || 'Agri Zone'}</div>
+              <div style="font-size: 14px; color: #57534e;">Phone: ${settingsMap.contact_phone || '+91 98765 43210'}</div>
+              <div style="font-size: 13px; color: #15803d; font-weight: 800; margin-top: 6px; letter-spacing: 0.3px;">
+                ✓ Certified Botanical Material &amp; Pure Pedigree
+              </div>
+            </div>
+            <div class="invoice-tag">
+              TAX INVOICE
+              <div style="font-size: 17px; font-family: monospace; font-weight: 900; margin-top: 4px; color: #1c1917;">
+                ${order.invoice_number}
+              </div>
+              <div style="font-size: 14px; color: #57534e; font-weight: 600; margin-top: 2px;">
+                Date: ${order.order_date}
+              </div>
+            </div>
           </div>
-          <div class="box">
-            <div style="font-size: 12px; text-transform: uppercase; color: #78716c; font-weight: bold;">Payment Details:</div>
-            <div style="font-size: 14px; margin-top: 4px;">Mode: <strong>${order.payment_mode}</strong></div>
-            <div style="font-size: 14px; margin-top: 2px;">Status: <strong>${order.payment_status}</strong></div>
-            ${order.payment_notes ? `<div style="font-size: 12px; color: #57534e; margin-top: 4px;">Ref: ${order.payment_notes}</div>` : ''}
-          </div>
-        </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Variety / Cultivar</th>
-              <th>Batch Tag</th>
-              <th style="text-align: right;">Quantity</th>
-              <th style="text-align: right;">Unit Price</th>
-              <th style="text-align: right;">Total Amount</th>
-            </tr>
+          <div class="details">
+            <div class="box">
+              <div style="font-size: 12px; text-transform: uppercase; color: #78716c; font-weight: 800; letter-spacing: 0.5px;">Billed To:</div>
+              <div style="font-size: 18px; font-weight: 900; color: #1c1917; margin-top: 6px;">${order.customer_name}</div>
+              <div style="font-size: 14px; color: #57534e; margin-top: 4px;">${order.customer_address || 'N/A'}</div>
+              <div style="font-size: 14px; color: #57534e;">Phone: <strong>${order.customer_phone || 'N/A'}</strong></div>
+              ${order.gst_or_tax_id ? `<div style="font-size: 13px; color: #57534e; margin-top: 4px;">GSTIN: <strong>${order.gst_or_tax_id}</strong></div>` : ''}
+            </div>
+            <div class="box">
+              <div style="font-size: 12px; text-transform: uppercase; color: #78716c; font-weight: 800; letter-spacing: 0.5px;">Payment Details:</div>
+              <div style="font-size: 15px; margin-top: 6px; color: #1c1917;">Payment Mode: <strong style="color: #244930;">${order.payment_mode}</strong></div>
+              <div style="font-size: 15px; margin-top: 4px; color: #1c1917;">Payment Status: <strong style="color: #15803d;">${order.payment_status}</strong></div>
+              ${order.payment_notes ? `<div style="font-size: 13px; color: #57534e; margin-top: 6px;">Ref: ${order.payment_notes}</div>` : ''}
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Variety / Cultivar</th>
+                <th>Batch Tag</th>
+                <th style="text-align: right;">Quantity</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Total Amount</th>
+              </tr>
           </thead>
           <tbody>
             ${items
@@ -392,8 +528,9 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
         </div>
 
         <div class="footer">
-          <div>This is a computer-generated tax invoice for certified horticultural stock.</div>
-          <div>All plant material carries verified rootstock and mother tree lineage. Thank you for your patronage!</div>
+          <div>This is an official computer-generated tax invoice for certified horticultural stock.</div>
+          <div>All plant material carries verified rootstock and mother tree lineage. Deep Root Farms • Thank you for your patronage!</div>
+        </div>
         </div>
 
         <script>
@@ -406,6 +543,45 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
             }
           }
 
+          function saveAsPdf() {
+            var btn = document.getElementById('downloadPdfBtn');
+            var originalText = btn ? btn.innerText : '';
+            if (btn) {
+              btn.innerText = '⏳ Generating PDF...';
+              btn.disabled = true;
+            }
+
+            var element = document.getElementById('printableArea');
+            if (window.html2pdf && element) {
+              var opt = {
+                margin:       10,
+                filename:     'Invoice_${order.invoice_number}.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              };
+              window.html2pdf().set(opt).from(element).save().then(function() {
+                if (btn) {
+                  btn.innerText = originalText;
+                  btn.disabled = false;
+                }
+              }).catch(function(err) {
+                console.error('html2pdf error:', err);
+                if (btn) {
+                  btn.innerText = originalText;
+                  btn.disabled = false;
+                }
+                triggerPrint();
+              });
+            } else {
+              if (btn) {
+                btn.innerText = originalText;
+                btn.disabled = false;
+              }
+              triggerPrint();
+            }
+          }
+
           document.addEventListener('DOMContentLoaded', function() {
             var btn = document.getElementById('printBtn');
             if (btn) {
@@ -413,7 +589,7 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
             }
             var urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('print') === 'true' || urlParams.get('autoprint') === 'true') {
-              setTimeout(triggerPrint, 400);
+              setTimeout(triggerPrint, 500);
             }
           });
         </script>

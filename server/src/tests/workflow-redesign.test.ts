@@ -28,52 +28,80 @@ describe('Complete Farm Workflow Redesign - End-to-End Test Suite', () => {
 
   let rootstockBatchId: number;
   let scionBatchId: number;
+  let dualBatchId: number;
   let graftedBatchId: number;
   let rfsBatchId: number;
   let saleInvoiceNumber: string;
 
-  it('Phase A: SOWING - Both Rootstock & Scion creates two independent batches', async () => {
-    const res = await request(app)
+  it('Phase A: SOWING - Seed batches with designations (Rootstock, Scion, or Both as a single physical batch)', async () => {
+    // 1. Sowing a single batch designated for BOTH Rootstock and Scion (e.g. Brinjal)
+    const dualRes = await request(app)
       .post('/api/inventory/sowing')
       .set('Authorization', `Bearer ${supervisorToken}`)
       .send({
-        types: ['ROOTSTOCK', 'SCION'],
+        seed_name: 'Desi Brinjal (Solanum melongena)',
+        variety: 'Desi Brinjal (Solanum melongena)',
+        designation: 'BOTH',
+        seeds_sown: 200,
         sowing_date: '2026-04-01',
         seed_source: 'National Horticulture Board Seed Center',
-        location: 'Polyhouse Bay 1',
-        notes: 'High-density seasonal sowing run',
-        rootstock: {
-          variety: 'Desi Polyembryonic Mango Rootstock',
-          seeds_sown: 150,
-          location: 'Polyhouse Bay 1 - Bed A',
-        },
-        scion: {
-          variety: 'Ratnagiri Alphonso Mango',
-          seeds_sown: 150,
-          location: 'Polyhouse Bay 1 - Bed B',
-        },
+        location: 'Polyhouse Bay 1 - Tray Rack A',
+        notes: 'Dual-use brinjal seed batch sown for both rootstock and scion',
       });
 
-    expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.batches.length).toBe(2);
+    expect(dualRes.status).toBe(201);
+    expect(dualRes.body.success).toBe(true);
+    // Verifies single physical batch is created, NOT two duplicate batches
+    expect(dualRes.body.batch).toBeDefined();
+    expect(dualRes.body.batch.designation).toBe('BOTH');
+    expect(dualRes.body.batch.initial_quantity).toBe(200);
+    expect(dualRes.body.batch.current_quantity).toBe(200);
+    expect(dualRes.body.batch.serial_number).toMatch(/^(SEED|SOW)-\d{4}-\d{4,5}$/);
+    dualBatchId = dualRes.body.batch.id;
 
-    const rootBatch = res.body.batches.find((b: any) => b.batch_type === 'ROOTSTOCK');
-    const scionBatch = res.body.batches.find((b: any) => b.batch_type === 'SCION');
+    // 2. Sowing a batch designated for ROOTSTOCK only
+    const rootRes = await request(app)
+      .post('/api/inventory/sowing')
+      .set('Authorization', `Bearer ${supervisorToken}`)
+      .send({
+        seed_name: 'Desi Polyembryonic Mango Rootstock',
+        variety: 'Desi Polyembryonic Mango Rootstock',
+        designation: 'ROOTSTOCK',
+        seeds_sown: 150,
+        sowing_date: '2026-04-01',
+        seed_source: 'Verified Forest Department Stock',
+        location: 'Polyhouse Bay 1 - Bed A',
+        notes: 'Hardy base seed lot',
+      });
 
-    expect(rootBatch).toBeDefined();
-    expect(rootBatch.serial_number).toMatch(/^(ROOT|RS)-\d{4}-\d{4,5}$/);
-    expect(rootBatch.current_quantity).toBe(150);
-    rootstockBatchId = rootBatch.id;
+    expect(rootRes.status).toBe(201);
+    expect(rootRes.body.batch.designation).toBe('ROOTSTOCK');
+    expect(rootRes.body.batch.serial_number).toMatch(/^(ROOT|RS)-\d{4}-\d{4,5}$/);
+    rootstockBatchId = rootRes.body.batch.id;
 
-    expect(scionBatch).toBeDefined();
-    expect(scionBatch.serial_number).toMatch(/^(SCION|SC)-\d{4}-\d{4,5}$/);
-    expect(scionBatch.current_quantity).toBe(150);
-    scionBatchId = scionBatch.id;
+    // 3. Sowing a batch designated for SCION only
+    const scionRes = await request(app)
+      .post('/api/inventory/sowing')
+      .set('Authorization', `Bearer ${supervisorToken}`)
+      .send({
+        seed_name: 'Ratnagiri Alphonso Mango',
+        variety: 'Ratnagiri Alphonso Mango',
+        designation: 'SCION',
+        seeds_sown: 150,
+        sowing_date: '2026-04-01',
+        seed_source: 'Certified Mother Orchard',
+        location: 'Polyhouse Bay 1 - Bed B',
+        notes: 'Cultivar cutting line',
+      });
 
-    // Verify sowing records exist for both
-    const sowings = await db('sowing_records').whereIn('batch_id', [rootstockBatchId, scionBatchId]);
-    expect(sowings.length).toBe(2);
+    expect(scionRes.status).toBe(201);
+    expect(scionRes.body.batch.designation).toBe('SCION');
+    expect(scionRes.body.batch.serial_number).toMatch(/^(SCION|SC)-\d{4}-\d{4,5}$/);
+    scionBatchId = scionRes.body.batch.id;
+
+    // Verify database stores designated records
+    const sowings = await db('sowing_records').whereIn('batch_id', [dualBatchId, rootstockBatchId, scionBatchId]);
+    expect(sowings.length).toBe(3);
   });
 
   it('Phase B: GERMINATION TRACKING - Multiple dated observations without overwriting', async () => {

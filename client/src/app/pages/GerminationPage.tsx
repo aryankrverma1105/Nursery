@@ -19,6 +19,9 @@ interface GerminationBatch {
   serial_number: string;
   batch_type: string;
   plant_variety: string;
+  seed_name?: string;
+  designation?: 'ROOTSTOCK' | 'SCION' | 'BOTH' | string;
+  sowing_designation?: 'ROOTSTOCK' | 'SCION' | 'BOTH' | string;
   status: string;
   stage: string;
   total_seeds: number;
@@ -171,13 +174,17 @@ export const GerminationPage: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                        b.batch_type === 'ROOTSTOCK'
+                      className={`text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                        (b.designation || b.sowing_designation || b.batch_type) === 'ROOTSTOCK'
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                          : (b.designation || b.sowing_designation || b.batch_type) === 'SCION'
+                          ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                          : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
                       }`}
                     >
-                      {b.batch_type}
+                      {(b.designation || b.sowing_designation || b.batch_type) === 'BOTH'
+                        ? 'Scion & Rootstock'
+                        : `Designation: ${b.designation || b.sowing_designation || b.batch_type}`}
                     </span>
                     <span className="text-xs font-semibold text-stone-400">
                       {b.observation_count} observation(s)
@@ -188,7 +195,7 @@ export const GerminationPage: React.FC = () => {
                     {b.serial_number}
                   </div>
                   <div className="text-sm font-bold text-stone-800 dark:text-stone-200 mt-0.5">
-                    {b.plant_variety}
+                    {b.seed_name || b.plant_variety}
                   </div>
 
                   {/* Progress bar */}

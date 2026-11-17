@@ -20,8 +20,13 @@ interface GrowthBatch {
   serial_number: string;
   batch_type: string;
   plant_variety: string;
+  seed_name?: string;
+  designation?: 'ROOTSTOCK' | 'SCION' | 'BOTH' | string;
+  sowing_designation?: 'ROOTSTOCK' | 'SCION' | 'BOTH' | string;
   initial_quantity: number;
   current_quantity: number;
+  consumed_as_rootstock?: number;
+  consumed_as_scion?: number;
   status: string;
   stage: string;
   location: string;
@@ -183,22 +188,22 @@ export const PlantGrowthPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {['ALL', 'ROOTSTOCK', 'SCION'].map((type) => (
+          {['ALL', 'ROOTSTOCK', 'SCION', 'BOTH'].map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
                 filterType === type
                   ? 'bg-lime-600 text-white shadow-xs'
                   : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
               }`}
             >
-              {type === 'ALL' ? 'All Batches' : `${type}s`}
+              {type === 'ALL' ? 'All Batches' : type === 'BOTH' ? 'Both (Dual)' : `${type}s`}
             </button>
           ))}
           <button
             onClick={fetchBatches}
-            className="p-1.5 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 text-stone-400"
+            className="p-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 text-stone-400"
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -248,16 +253,20 @@ export const PlantGrowthPage: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                        b.batch_type === 'ROOTSTOCK'
+                      className={`text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                        (b.designation || b.sowing_designation || b.batch_type) === 'ROOTSTOCK'
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                          : (b.designation || b.sowing_designation || b.batch_type) === 'SCION'
+                          ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                          : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
                       }`}
                     >
-                      {b.batch_type}
+                      {(b.designation || b.sowing_designation || b.batch_type) === 'BOTH'
+                        ? 'Scion & Rootstock'
+                        : `Designation: ${b.designation || b.sowing_designation || b.batch_type}`}
                     </span>
                     <span
-                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                         isReadyForGrafting
                           ? 'bg-lime-100 text-lime-800 dark:bg-lime-950 dark:text-lime-300 animate-pulse'
                           : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'
@@ -270,8 +279,8 @@ export const PlantGrowthPage: React.FC = () => {
                   <div className="font-mono text-base font-bold text-stone-900 dark:text-stone-100">
                     {b.serial_number}
                   </div>
-                  <div className="text-sm font-bold text-stone-800 dark:text-stone-200 mt-0.5">
-                    {b.plant_variety}
+                  <div className="text-base font-black text-stone-900 dark:text-stone-100 mt-0.5">
+                    {b.seed_name || b.plant_variety}
                   </div>
 
                   {/* Quantity Stats */}

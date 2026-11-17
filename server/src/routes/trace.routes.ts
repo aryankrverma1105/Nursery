@@ -61,7 +61,7 @@ async function assembleWorkflowTimeline(targetBatchId: number) {
         break;
       }
     }
-  } else if (batch.batch_type === 'ROOTSTOCK') {
+  } else if (batch.batch_type === 'ROOTSTOCK' || batch.designation === 'ROOTSTOCK') {
     rootstockBatch = batch;
     // Check for child graft
     const childLinks = await db('batch_lineage')
@@ -74,9 +74,21 @@ async function assembleWorkflowTimeline(targetBatchId: number) {
         break;
       }
     }
-  } else if (batch.batch_type === 'SCION') {
+  } else if (batch.batch_type === 'SCION' || batch.designation === 'SCION') {
     scionBatch = batch;
     // Check for child graft
+    const childLinks = await db('batch_lineage')
+      .join('batches', 'batch_lineage.batch_id', 'batches.id')
+      .where('batch_lineage.parent_batch_id', batch.id)
+      .select('batches.*');
+    for (const c of childLinks) {
+      if (c.batch_type === 'GRAFTED') {
+        graftBatch = c;
+        break;
+      }
+    }
+  } else if (batch.designation === 'BOTH' || batch.batch_type === 'BOTH') {
+    // Sowing batch designated for both
     const childLinks = await db('batch_lineage')
       .join('batches', 'batch_lineage.batch_id', 'batches.id')
       .where('batch_lineage.parent_batch_id', batch.id)
@@ -97,9 +109,24 @@ async function assembleWorkflowTimeline(targetBatchId: number) {
       .select('batches.*', 'batch_lineage.relationship_type');
 
     for (const p of parents) {
-      if (p.relationship_type === 'ROOTSTOCK' || p.batch_type === 'ROOTSTOCK') {
+      if (
+        p.relationship_type === 'ROOTSTOCK_PARENT' ||
+        p.relationship_type === 'ROOTSTOCK' ||
+        p.batch_type === 'ROOTSTOCK' ||
+        p.designation === 'ROOTSTOCK'
+      ) {
         rootstockBatch = p;
-      } else if (p.relationship_type === 'SCION' || p.batch_type === 'SCION') {
+      }
+      if (
+        p.relationship_type === 'SCION_PARENT' ||
+        p.relationship_type === 'SCION' ||
+        p.batch_type === 'SCION' ||
+        p.designation === 'SCION'
+      ) {
+        scionBatch = p;
+      }
+      if (p.relationship_type === 'DUAL_PARENT') {
+        rootstockBatch = p;
         scionBatch = p;
       }
     }

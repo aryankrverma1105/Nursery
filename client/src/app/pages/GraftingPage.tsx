@@ -279,13 +279,13 @@ export const GraftingPage: React.FC = () => {
           </div>
 
           {/* SCION SELECTOR */}
-          <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 space-y-3">
+          <div className="p-5 rounded-2xl bg-teal-50/50 dark:bg-teal-950/30 border-2 border-teal-200 dark:border-teal-900 space-y-3.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
-                <Layers className="w-4 h-4" />
+              <label className="text-sm font-black uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-2">
+                <Scissors className="w-5 h-5" />
                 Scion Parent Batch *
               </label>
-              <span className="text-[10px] font-bold text-teal-600">
+              <span className="text-xs font-black text-teal-700 dark:text-teal-300">
                 {scions.length} available
               </span>
             </div>
@@ -294,7 +294,7 @@ export const GraftingPage: React.FC = () => {
               value={selectedScionId}
               onChange={(e) => setSelectedScionId(Number(e.target.value) || '')}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm font-semibold outline-none"
+              className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base font-bold outline-none"
             >
               <option value="">-- Choose Scion Batch --</option>
               {scions.map((s) => (
@@ -305,24 +305,34 @@ export const GraftingPage: React.FC = () => {
             </select>
 
             {selectedScion && (
-              <div className="p-3 rounded-xl bg-white dark:bg-stone-900 border border-teal-200/80 dark:border-teal-800 text-xs space-y-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-teal-300 dark:border-teal-800 text-sm space-y-1.5 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-stone-900 dark:text-stone-100">
+                  <span className="font-mono font-black text-base text-stone-900 dark:text-stone-100">
                     {selectedScion.serial_number}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-bold text-[10px]">
+                  <span className="px-2.5 py-1 rounded-md bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-200 font-black text-xs uppercase tracking-wider">
                     {selectedScion.status}
                   </span>
                 </div>
-                <div className="text-stone-600 dark:text-stone-300 font-semibold">{selectedScion.plant_variety}</div>
-                <div className="text-stone-500 flex items-center justify-between pt-1">
+                <div className="text-stone-700 dark:text-stone-200 font-bold">{selectedScion.plant_variety}</div>
+                <div className="text-stone-500 dark:text-stone-400 flex items-center justify-between pt-1">
                   <span>Available stock:</span>
-                  <strong className="text-teal-600 text-sm">{selectedScion.current_quantity} plants</strong>
+                  <strong className="text-teal-700 dark:text-teal-300 text-base font-black font-sans">{selectedScion.current_quantity} plants</strong>
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {selectedRootstockId && selectedScionId && selectedRootstockId === selectedScionId && (
+          <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border-2 border-purple-200 dark:border-purple-800 text-sm font-semibold text-purple-900 dark:text-purple-200 flex items-center gap-3">
+            <CheckCircle className="w-6 h-6 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+            <span>
+              <strong>Dual-Designation Batch:</strong> The same physical seed batch is selected for both Rootstock and Scion.
+              Attempting <strong>{quantityGrafted}</strong> grafts will consume <strong>{quantityGrafted * 2}</strong> physical plants from this batch ({quantityGrafted} as Rootstock + {quantityGrafted} as Scion).
+            </span>
+          </div>
+        )}
 
         {/* GRAFT RUN PARAMETERS */}
         <h2 className="text-base font-bold text-stone-900 dark:text-stone-100 uppercase tracking-wider flex items-center gap-2 pt-4 border-t border-stone-100 dark:border-stone-800">

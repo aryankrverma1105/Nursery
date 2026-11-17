@@ -223,9 +223,9 @@ export const SellingPage: React.FC = () => {
               href={`/api/sales/orders/${feedback.order.orderId}/invoice?print=true`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-800 hover:bg-brand-900 text-white font-bold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer"
+              className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-brand-800 hover:bg-brand-900 active:scale-95 text-white font-black text-sm sm:text-base shadow-lg transition-all self-start sm:self-auto cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-5 h-5" />
               <span>Print / Save Tax Invoice</span>
             </a>
           )}
@@ -516,10 +516,10 @@ export const SellingPage: React.FC = () => {
                       href={`/api/sales/orders/${ord.id}/invoice`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-brand-850 hover:bg-brand-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-brand-850 hover:bg-brand-900 active:scale-95 text-white font-extrabold text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer"
                     >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Tax Invoice</span>
+                      <Printer className="w-4 h-4" />
+                      <span>Print / View Invoice</span>
                     </a>
                   </div>
                 </div>

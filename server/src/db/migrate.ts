@@ -426,6 +426,16 @@ export async function up(): Promise<void> {
         table.boolean('is_archived').defaultTo(false);
       });
     }
+
+    const hasDesignation = await db.schema.hasColumn('batches', 'designation');
+    if (!hasDesignation) {
+      await db.schema.table('batches', (table) => {
+        table.string('designation').nullable(); // 'ROOTSTOCK', 'SCION', 'BOTH'
+        table.string('seed_name').nullable();
+        table.integer('consumed_as_rootstock').defaultTo(0);
+        table.integer('consumed_as_scion').defaultTo(0);
+      });
+    }
   }
 
   if (await db.schema.hasTable('sowing_records')) {
@@ -438,6 +448,14 @@ export async function up(): Promise<void> {
         table.string('location').nullable();
         table.integer('created_by_user_id').nullable();
         table.timestamp('created_at').defaultTo(db.fn.now());
+      });
+    }
+
+    const hasSowingDesignation = await db.schema.hasColumn('sowing_records', 'designation');
+    if (!hasSowingDesignation) {
+      await db.schema.table('sowing_records', (table) => {
+        table.string('designation').nullable();
+        table.string('seed_name').nullable();
       });
     }
   }

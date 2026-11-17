@@ -171,12 +171,12 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
 });
 
 // ==========================================
-// 3. PHASE A: SOWING (Rootstock, Scion, or Both)
+// 3. PHASE A: SOWING (Designated for Rootstock, Scion, or Both)
 // ==========================================
 router.get('/sowing', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const batches = await db('batches')
-      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION', 'BOTH', 'SEEDLING', 'SOWN'])
       .whereNot('status', 'DISCARDED')
       .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
       .leftJoin('suppliers', 'sowing_records.supplier_id', 'suppliers.id')
@@ -185,6 +185,8 @@ router.get('/sowing', async (req: Request, res: Response, next: NextFunction) =>
         'sowing_records.seeds_sown',
         'sowing_records.sowing_date',
         'sowing_records.seed_source',
+        'sowing_records.seed_name as sowing_seed_name',
+        'sowing_records.designation as sowing_designation',
         'sowing_records.plant_type as sowing_plant_type',
         'suppliers.name as supplier_name'
       )
@@ -198,196 +200,197 @@ router.get('/sowing', async (req: Request, res: Response, next: NextFunction) =>
 
 router.post('/sowing', requirePermission('INVENTORY_WRITE'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let { types = [], sowing_date, supplier_id, seed_source, location, notes, rootstock, scion, seed_lot_id, seeds_sown, variety, plant_type } = req.body;
+    let {
+      seed_name,
+      variety,
+      designation,
+      types = [],
+      sowing_date,
+      supplier_id,
+      seed_source,
+      location,
+      notes,
+      rootstock,
+      scion,
+      seed_lot_id,
+      seeds_sown,
+      plant_type,
+    } = req.body;
 
-    if ((!types || types.length === 0) && (seeds_sown || seed_lot_id || plant_type || variety)) {
-      const lot = seed_lot_id ? await db('seed_lots').where({ id: seed_lot_id }).first() : null;
-      const pType = (plant_type || 'ROOTSTOCK').toUpperCase().includes('SCION') ? 'SCION' : 'ROOTSTOCK';
-      types = [pType];
-      const itemData = {
-        variety: variety || lot?.plant_variety || 'Certified Variety',
-        seeds_sown: Number(seeds_sown || 100),
-        seed_lot_id: seed_lot_id || null,
-        location,
-        notes,
-      };
-      if (pType === 'SCION') {
-        scion = itemData;
-      } else {
-        rootstock = itemData;
+    // 1. Resolve seed identity & lot
+    const lot = seed_lot_id ? await db('seed_lots').where({ id: seed_lot_id }).first() : null;
+    const varietyCandidate = (
+      seed_name ||
+      variety ||
+      rootstock?.variety ||
+      scion?.variety ||
+      lot?.plant_variety ||
+      ''
+    ).toUpperCase();
+
+    // 2. Resolve designation (ROOTSTOCK, SCION, or BOTH)
+    let finalDesignation: 'ROOTSTOCK' | 'SCION' | 'BOTH' = 'BOTH';
+    if (designation) {
+      const d = String(designation).toUpperCase();
+      if (d === 'ROOTSTOCK' || d === 'SCION' || d === 'BOTH') {
+        finalDesignation = d;
+      }
+    } else if (Array.isArray(types) && types.length > 0) {
+      const hasRoot = types.includes('ROOTSTOCK');
+      const hasScion = types.includes('SCION');
+      if (hasRoot && hasScion) {
+        finalDesignation = 'BOTH';
+      } else if (hasRoot) {
+        finalDesignation = 'ROOTSTOCK';
+      } else if (hasScion) {
+        finalDesignation = 'SCION';
+      }
+    } else if (plant_type) {
+      finalDesignation = plant_type.toUpperCase().includes('SCION') ? 'SCION' : 'ROOTSTOCK';
+    } else if (varietyCandidate.includes('ROOTSTOCK')) {
+      finalDesignation = 'ROOTSTOCK';
+    } else if (varietyCandidate.includes('SCION')) {
+      finalDesignation = 'SCION';
+    }
+
+    // 3. Resolve seed name and variety (actual seed identity independent of designation)
+    const resolvedSeedName = (
+      seed_name ||
+      variety ||
+      rootstock?.variety ||
+      scion?.variety ||
+      lot?.plant_variety ||
+      'Certified Seed'
+    ).trim();
+
+    const resolvedVariety = (
+      variety ||
+      seed_name ||
+      rootstock?.variety ||
+      scion?.variety ||
+      resolvedSeedName
+    ).trim();
+
+    // 3. Resolve seeds sown count (single physical count without duplication)
+    let totalSeeds = Number(seeds_sown);
+    if (!totalSeeds || totalSeeds <= 0) {
+      if (rootstock?.seeds_sown && scion?.seeds_sown) {
+        // Fallback for legacy requests passing separate objects
+        totalSeeds = Number(rootstock.seeds_sown) + Number(scion.seeds_sown);
+      } else if (rootstock?.seeds_sown) {
+        totalSeeds = Number(rootstock.seeds_sown);
+      } else if (scion?.seeds_sown) {
+        totalSeeds = Number(scion.seeds_sown);
       }
     }
 
-    if (!Array.isArray(types) || types.length === 0) {
-      return res.status(400).json({ error: 'Please select at least one plant type: Rootstock, Scion, or Both.' });
-    }
-
-    const isRootstock = types.includes('ROOTSTOCK');
-    const isScion = types.includes('SCION');
-
-    if (isRootstock && (!rootstock || !rootstock.variety || !rootstock.seeds_sown || rootstock.seeds_sown <= 0)) {
-      return res.status(400).json({ error: 'Please provide valid variety and seeds sown count for Rootstock.' });
-    }
-
-    if (isScion && (!scion || !scion.variety || !scion.seeds_sown || scion.seeds_sown <= 0)) {
-      return res.status(400).json({ error: 'Please provide valid variety and seeds sown count for Scion.' });
+    if (isNaN(totalSeeds) || totalSeeds <= 0) {
+      return res.status(400).json({ error: 'Please enter a valid number of seeds sown (> 0).' });
     }
 
     const sowDate = sowing_date || new Date().toISOString().split('T')[0];
-    const createdBatches: any[] = [];
+    const year = new Date(sowDate).getFullYear();
+    const template = await identifierService.getSerialTemplate();
+
+    // 4. Determine prefix and allocate sequence for this single physical batch
+    let prefixType = 'BOTH';
+    if (finalDesignation === 'ROOTSTOCK') prefixType = 'ROOTSTOCK';
+    else if (finalDesignation === 'SCION') prefixType = 'SCION';
+
+    let createdBatch: any = null;
 
     await db.transaction(async (trx) => {
-      const year = new Date(sowDate).getFullYear();
-      const template = await identifierService.getSerialTemplate();
+      const prefix = await identifierService.getPrefixForType(prefixType);
+      const seq = await identifierService.getNextSequence(`${prefix}_${year}`);
+      const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
 
-      // 1. Process Rootstock if selected
-      if (isRootstock) {
-        const prefix = await identifierService.getPrefixForType('ROOTSTOCK');
-        const seq = await identifierService.getNextSequence(`ROOT_${year}`);
-        const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
+      const batchTypeVal = finalDesignation === 'BOTH' ? 'BOTH' : finalDesignation;
 
-        const [bIdObj] = await trx('batches').insert({
-          batch_type: 'ROOTSTOCK',
-          serial_number,
-          plant_variety: rootstock.variety,
-          status: 'SOWN',
-          stage: 'SOWN',
-          initial_quantity: rootstock.seeds_sown,
-          current_quantity: rootstock.seeds_sown,
-          location: rootstock.location || location || 'Nursery Tray Block A',
-          notes: rootstock.notes || notes || 'Rootstock seeds sown',
-          created_at: db.fn.now(),
-          updated_at: db.fn.now(),
-        }).returning('id');
+      const [bIdObj] = await trx('batches').insert({
+        serial_number,
+        batch_type: batchTypeVal,
+        designation: finalDesignation,
+        seed_name: resolvedSeedName,
+        plant_variety: resolvedVariety,
+        status: 'SOWN',
+        stage: 'SOWN',
+        initial_quantity: totalSeeds,
+        current_quantity: totalSeeds,
+        consumed_as_rootstock: 0,
+        consumed_as_scion: 0,
+        location: location || rootstock?.location || scion?.location || 'Nursery Tray Block',
+        notes: notes || rootstock?.notes || scion?.notes || `Sown for designation: ${finalDesignation}`,
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      }).returning('id');
 
-        const bId = typeof bIdObj === 'object' ? bIdObj.id : bIdObj;
+      const bId = typeof bIdObj === 'object' ? bIdObj.id : bIdObj;
 
-        await trx('identifiers').insert({
-          entity_type: 'BATCH',
-          entity_id: bId,
-          scheme: 'SERIAL',
-          value: serial_number,
-          status: 'ACTIVE',
-          issued_at: db.fn.now(),
-        });
+      await trx('identifiers').insert({
+        entity_type: 'BATCH',
+        entity_id: bId,
+        scheme: 'SERIAL',
+        value: serial_number,
+        status: 'ACTIVE',
+        issued_at: db.fn.now(),
+      });
 
-        await trx('sowing_records').insert({
-          batch_id: bId,
-          plant_type: 'ROOTSTOCK',
-          variety: rootstock.variety,
-          seed_lot_id: rootstock.seed_lot_id || null,
-          seed_source: seed_source || 'Certified Supplier',
-          seeds_sown: rootstock.seeds_sown,
-          sowing_date: sowDate,
-          location: rootstock.location || location || 'Nursery Tray Block A',
-          notes: rootstock.notes || notes,
-          created_by_user_id: req.user!.id,
-          created_at: db.fn.now(),
-        });
+      await trx('sowing_records').insert({
+        batch_id: bId,
+        seed_name: resolvedSeedName,
+        variety: resolvedVariety,
+        plant_type: finalDesignation,
+        designation: finalDesignation,
+        seed_lot_id: seed_lot_id || rootstock?.seed_lot_id || scion?.seed_lot_id || null,
+        seed_source: seed_source || 'Certified Supplier',
+        seeds_sown: totalSeeds,
+        sowing_date: sowDate,
+        location: location || 'Nursery Tray Block',
+        notes: notes,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
 
-        await trx('inventory_movements').insert({
-          batch_id: bId,
-          movement_type: 'SOWING',
-          quantity_change: rootstock.seeds_sown,
-          resulting_balance: rootstock.seeds_sown,
-          reference_type: 'SOWING',
-          notes: `Initial Rootstock sowing of ${rootstock.seeds_sown} seeds`,
-          created_by_user_id: req.user!.id,
-          created_at: db.fn.now(),
-        });
+      await trx('inventory_movements').insert({
+        batch_id: bId,
+        movement_type: 'SOWING',
+        quantity_change: totalSeeds,
+        resulting_balance: totalSeeds,
+        reference_type: 'SOWING',
+        notes: `Initial sowing of ${totalSeeds} seeds (${resolvedSeedName}) designated for ${finalDesignation}`,
+        created_by_user_id: req.user!.id,
+        created_at: db.fn.now(),
+      });
 
-        createdBatches.push({
-          id: bId,
-          batchId: bId,
-          serial_number,
-          batch_type: 'ROOTSTOCK',
-          variety: rootstock.variety,
-          seeds_sown: rootstock.seeds_sown,
-          current_quantity: rootstock.seeds_sown,
-        });
-      }
-
-      // 2. Process Scion if selected
-      if (isScion) {
-        const prefix = await identifierService.getPrefixForType('SCION');
-        const seq = await identifierService.getNextSequence(`SCION_${year}`);
-        const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
-
-        const [bIdObj] = await trx('batches').insert({
-          batch_type: 'SCION',
-          serial_number,
-          plant_variety: scion.variety,
-          status: 'SOWN',
-          stage: 'SOWN',
-          initial_quantity: scion.seeds_sown,
-          current_quantity: scion.seeds_sown,
-          location: scion.location || location || 'Nursery Tray Block B',
-          notes: scion.notes || notes || 'Scion mother-line seeds sown',
-          created_at: db.fn.now(),
-          updated_at: db.fn.now(),
-        }).returning('id');
-
-        const bId = typeof bIdObj === 'object' ? bIdObj.id : bIdObj;
-
-        await trx('identifiers').insert({
-          entity_type: 'BATCH',
-          entity_id: bId,
-          scheme: 'SERIAL',
-          value: serial_number,
-          status: 'ACTIVE',
-          issued_at: db.fn.now(),
-        });
-
-        await trx('sowing_records').insert({
-          batch_id: bId,
-          plant_type: 'SCION',
-          variety: scion.variety,
-          seed_lot_id: scion.seed_lot_id || null,
-          seed_source: seed_source || 'Certified Supplier',
-          seeds_sown: scion.seeds_sown,
-          sowing_date: sowDate,
-          location: scion.location || location || 'Nursery Tray Block B',
-          notes: scion.notes || notes,
-          created_by_user_id: req.user!.id,
-          created_at: db.fn.now(),
-        });
-
-        await trx('inventory_movements').insert({
-          batch_id: bId,
-          movement_type: 'SOWING',
-          quantity_change: scion.seeds_sown,
-          resulting_balance: scion.seeds_sown,
-          reference_type: 'SOWING',
-          notes: `Initial Scion sowing of ${scion.seeds_sown} seeds`,
-          created_by_user_id: req.user!.id,
-          created_at: db.fn.now(),
-        });
-
-        createdBatches.push({
-          id: bId,
-          batchId: bId,
-          serial_number,
-          batch_type: 'SCION',
-          variety: scion.variety,
-          seeds_sown: scion.seeds_sown,
-          current_quantity: scion.seeds_sown,
-        });
-      }
+      createdBatch = {
+        id: bId,
+        batchId: bId,
+        serial_number,
+        batch_type: batchTypeVal,
+        designation: finalDesignation,
+        seed_name: resolvedSeedName,
+        plant_variety: resolvedVariety,
+        variety: resolvedVariety,
+        seeds_sown: totalSeeds,
+        current_quantity: totalSeeds,
+        initial_quantity: totalSeeds,
+        location: location || 'Nursery Tray Block',
+      };
     });
 
     await AuditService.log({
       userId: req.user!.id,
       action: 'SOWING_CREATED',
       entityType: 'SOWING',
-      newValues: { types, batches: createdBatches },
+      newValues: { batch: createdBatch, designation: finalDesignation },
       ipAddress: req.ip,
     });
 
     return res.status(201).json({
       success: true,
-      message: `Successfully registered ${createdBatches.length} sowing batch(es).`,
-      batches: createdBatches,
-      batch: createdBatches[0],
+      message: `Successfully registered sowing batch ${createdBatch.serial_number} (${resolvedSeedName}) for ${finalDesignation}.`,
+      batch: createdBatch,
+      batches: [createdBatch], // maintains backwards compatibility
     });
   } catch (err) {
     next(err);
@@ -400,7 +403,7 @@ router.post('/sowing', requirePermission('INVENTORY_WRITE'), async (req: Request
 router.get('/germination', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const batches = await db('batches')
-      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION', 'BOTH', 'SEEDLING', 'SOWN'])
       .whereNot('status', 'DISCARDED')
       .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
       .select(
@@ -408,6 +411,8 @@ router.get('/germination', async (req: Request, res: Response, next: NextFunctio
         'sowing_records.seeds_sown',
         'sowing_records.sowing_date',
         'sowing_records.seed_source',
+        'sowing_records.seed_name as sowing_seed_name',
+        'sowing_records.designation as sowing_designation',
         'sowing_records.plant_type as sowing_plant_type'
       )
       .orderBy('batches.created_at', 'desc');
@@ -572,9 +577,17 @@ router.get('/germination/:batchId/history', async (req: Request, res: Response, 
 router.get('/growth', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const batches = await db('batches')
-      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
+      .whereIn('batch_type', ['ROOTSTOCK', 'SCION', 'BOTH', 'SEEDLING', 'SOWN'])
       .whereNot('status', 'DISCARDED')
-      .orderBy('created_at', 'desc');
+      .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
+      .select(
+        'batches.*',
+        'sowing_records.seeds_sown',
+        'sowing_records.sowing_date',
+        'sowing_records.seed_name as sowing_seed_name',
+        'sowing_records.designation as sowing_designation'
+      )
+      .orderBy('batches.created_at', 'desc');
 
     const result = await Promise.all(
       batches.map(async (b) => {
@@ -754,17 +767,23 @@ router.get('/growth/:batchId/history', async (req: Request, res: Response, next:
 // ==========================================
 router.get('/grafting/eligible-batches', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Eligible Rootstocks: status in ['READY_FOR_GRAFTING', 'ACTIVE', 'GERMINATED', 'GROWING'] and qty > 0
+    // Eligible Rootstocks: batches designated ROOTSTOCK or BOTH with viable stock
     const rootstocks = await db('batches')
-      .where({ batch_type: 'ROOTSTOCK' })
-      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED'])
+      .where(function() {
+        this.whereIn('designation', ['ROOTSTOCK', 'BOTH'])
+            .orWhere('batch_type', 'ROOTSTOCK');
+      })
+      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED', 'SOWN'])
       .where('current_quantity', '>', 0)
       .orderBy('created_at', 'desc');
 
-    // Eligible Scions: status in ['READY_FOR_GRAFTING', 'ACTIVE', 'GERMINATED', 'GROWING'] and qty > 0
+    // Eligible Scions: batches designated SCION or BOTH with viable stock
     const scions = await db('batches')
-      .where({ batch_type: 'SCION' })
-      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED'])
+      .where(function() {
+        this.whereIn('designation', ['SCION', 'BOTH'])
+            .orWhere('batch_type', 'SCION');
+      })
+      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE', 'GERMINATED', 'GROWING', 'PARTIALLY_USED', 'SOWN'])
       .where('current_quantity', '>', 0)
       .orderBy('created_at', 'desc');
 
@@ -827,68 +846,124 @@ const handleGrafting = async (req: Request, res: Response, next: NextFunction) =
       return res.status(400).json({ error: 'Both Rootstock batch and Scion batch must be selected.' });
     }
 
+    const isSameBatch = String(rootstock_batch_id) === String(scion_batch_id);
     let createdGraftBatch: any = null;
 
     await db.transaction(async (trx) => {
-      // 1. Lock and validate Rootstock batch
-      const rootstock = await trx('batches').where({ id: rootstock_batch_id }).forUpdate().first();
-      if (!rootstock) {
-        throw new Error('Selected Rootstock batch not found.');
+      let rootstock: any;
+      let scion: any;
+
+      if (isSameBatch) {
+        // Single physical batch serving as both Rootstock and Scion
+        const batch = await trx('batches').where({ id: rootstock_batch_id }).forUpdate().first();
+        if (!batch) {
+          throw new Error('Selected batch not found.');
+        }
+        const neededQty = qty * 2;
+        if (batch.current_quantity < neededQty) {
+          throw new Error(
+            `Insufficient plant balance in ${batch.serial_number}. Attempting ${qty} grafts requires ${qty} Rootstock + ${qty} Scion (total ${neededQty} plants), but only ${batch.current_quantity} available.`
+          );
+        }
+
+        const newQty = batch.current_quantity - neededQty;
+        const newStatus = newQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
+
+        await trx('batches').where({ id: batch.id }).update({
+          current_quantity: newQty,
+          consumed_as_rootstock: (batch.consumed_as_rootstock || 0) + qty,
+          consumed_as_scion: (batch.consumed_as_scion || 0) + qty,
+          status: newStatus,
+          updated_at: db.fn.now(),
+        });
+
+        await trx('inventory_movements').insert([
+          {
+            batch_id: batch.id,
+            movement_type: 'GRAFTING_IN',
+            quantity_change: -qty,
+            resulting_balance: batch.current_quantity - qty,
+            reference_type: 'GRAFTING',
+            notes: `Consumed ${qty} plants as Rootstock for grafting`,
+            created_by_user_id: req.user!.id,
+            created_at: db.fn.now(),
+          },
+          {
+            batch_id: batch.id,
+            movement_type: 'GRAFTING_IN',
+            quantity_change: -qty,
+            resulting_balance: newQty,
+            reference_type: 'GRAFTING',
+            notes: `Consumed ${qty} plants as Scion for grafting`,
+            created_by_user_id: req.user!.id,
+            created_at: db.fn.now(),
+          },
+        ]);
+
+        rootstock = batch;
+        scion = batch;
+      } else {
+        // Distinct physical batches
+        rootstock = await trx('batches').where({ id: rootstock_batch_id }).forUpdate().first();
+        if (!rootstock) {
+          throw new Error('Selected Rootstock batch not found.');
+        }
+        if (rootstock.current_quantity < qty) {
+          throw new Error(`Insufficient Rootstock balance. Available: ${rootstock.current_quantity}, requested: ${qty}.`);
+        }
+
+        scion = await trx('batches').where({ id: scion_batch_id }).forUpdate().first();
+        if (!scion) {
+          throw new Error('Selected Scion batch not found.');
+        }
+        if (scion.current_quantity < qty) {
+          throw new Error(`Insufficient Scion balance. Available: ${scion.current_quantity}, requested: ${qty}.`);
+        }
+
+        // Deduct Rootstock
+        const newRootstockQty = rootstock.current_quantity - qty;
+        const rootstockStatus = newRootstockQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
+        await trx('batches').where({ id: rootstock_batch_id }).update({
+          current_quantity: newRootstockQty,
+          consumed_as_rootstock: (rootstock.consumed_as_rootstock || 0) + qty,
+          status: rootstockStatus,
+          updated_at: db.fn.now(),
+        });
+
+        await trx('inventory_movements').insert({
+          batch_id: rootstock_batch_id,
+          movement_type: 'GRAFTING_IN',
+          quantity_change: -qty,
+          resulting_balance: newRootstockQty,
+          reference_type: 'GRAFTING',
+          notes: `Consumed ${qty} plants as Rootstock for grafting`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+
+        // Deduct Scion
+        const newScionQty = scion.current_quantity - qty;
+        const scionStatus = newScionQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
+        await trx('batches').where({ id: scion_batch_id }).update({
+          current_quantity: newScionQty,
+          consumed_as_scion: (scion.consumed_as_scion || 0) + qty,
+          status: scionStatus,
+          updated_at: db.fn.now(),
+        });
+
+        await trx('inventory_movements').insert({
+          batch_id: scion_batch_id,
+          movement_type: 'GRAFTING_IN',
+          quantity_change: -qty,
+          resulting_balance: newScionQty,
+          reference_type: 'GRAFTING',
+          notes: `Consumed ${qty} plants as Scion for grafting`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
       }
-      if (rootstock.current_quantity < qty) {
-        throw new Error(`Insufficient Rootstock balance. Available: ${rootstock.current_quantity}, requested: ${qty}.`);
-      }
 
-      // 2. Lock and validate Scion batch
-      const scion = await trx('batches').where({ id: scion_batch_id }).forUpdate().first();
-      if (!scion) {
-        throw new Error('Selected Scion batch not found.');
-      }
-      if (scion.current_quantity < qty) {
-        throw new Error(`Insufficient Scion balance. Available: ${scion.current_quantity}, requested: ${qty}.`);
-      }
-
-      // 3. Deduct from Rootstock batch
-      const newRootstockQty = rootstock.current_quantity - qty;
-      const rootstockStatus = newRootstockQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
-      await trx('batches').where({ id: rootstock_batch_id }).update({
-        current_quantity: newRootstockQty,
-        status: rootstockStatus,
-        updated_at: db.fn.now(),
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: rootstock_batch_id,
-        movement_type: 'GRAFTING_IN',
-        quantity_change: -qty,
-        resulting_balance: newRootstockQty,
-        reference_type: 'GRAFTING',
-        notes: `Consumed ${qty} rootstocks for grafting`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // 4. Deduct from Scion batch
-      const newScionQty = scion.current_quantity - qty;
-      const scionStatus = newScionQty === 0 ? 'FULLY_USED' : 'PARTIALLY_USED';
-      await trx('batches').where({ id: scion_batch_id }).update({
-        current_quantity: newScionQty,
-        status: scionStatus,
-        updated_at: db.fn.now(),
-      });
-
-      await trx('inventory_movements').insert({
-        batch_id: scion_batch_id,
-        movement_type: 'GRAFTING_IN',
-        quantity_change: -qty,
-        resulting_balance: newScionQty,
-        reference_type: 'GRAFTING',
-        notes: `Consumed ${qty} scions for grafting`,
-        created_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // 5. Generate Grafted Batch
+      // Generate Grafted Batch
       const graftDateVal = grafting_date || new Date().toISOString().split('T')[0];
       const year = new Date(graftDateVal).getFullYear();
       const prefix = await identifierService.getPrefixForType('GRAFTED');
@@ -896,7 +971,9 @@ const handleGrafting = async (req: Request, res: Response, next: NextFunction) =
       const template = await identifierService.getSerialTemplate();
       const serial_number = identifierService.getStrategy('SERIAL').format(prefix, year, seq, template);
 
-      const combinedVariety = `${scion.plant_variety} (on ${rootstock.plant_variety})`;
+      const combinedVariety = isSameBatch
+        ? `${scion.plant_variety} (Self-Grafted)`
+        : `${scion.plant_variety} (on ${rootstock.plant_variety})`;
 
       const [gIdObj] = await trx('batches').insert({
         batch_type: 'GRAFTED',
@@ -923,25 +1000,35 @@ const handleGrafting = async (req: Request, res: Response, next: NextFunction) =
         issued_at: db.fn.now(),
       });
 
-      // 6. Permanently link to BOTH parent batches
-      await trx('batch_lineage').insert([
-        {
+      // Link permanently to parent batch(es)
+      if (isSameBatch) {
+        await trx('batch_lineage').insert({
           batch_id: gId,
           parent_batch_id: rootstock_batch_id,
-          relationship_type: 'ROOTSTOCK_PARENT',
-          notes: `Rootstock donor ${rootstock.serial_number}`,
+          relationship_type: 'DUAL_PARENT',
+          notes: `Dual Rootstock & Scion donor ${rootstock.serial_number}`,
           created_at: db.fn.now(),
-        },
-        {
-          batch_id: gId,
-          parent_batch_id: scion_batch_id,
-          relationship_type: 'SCION_PARENT',
-          notes: `Scion donor ${scion.serial_number}`,
-          created_at: db.fn.now(),
-        },
-      ]);
+        });
+      } else {
+        await trx('batch_lineage').insert([
+          {
+            batch_id: gId,
+            parent_batch_id: rootstock_batch_id,
+            relationship_type: 'ROOTSTOCK_PARENT',
+            notes: `Rootstock donor ${rootstock.serial_number}`,
+            created_at: db.fn.now(),
+          },
+          {
+            batch_id: gId,
+            parent_batch_id: scion_batch_id,
+            relationship_type: 'SCION_PARENT',
+            notes: `Scion donor ${scion.serial_number}`,
+            created_at: db.fn.now(),
+          },
+        ]);
+      }
 
-      // 7. Record in grafting_records
+      // Record in grafting_records
       await trx('grafting_records').insert({
         batch_id: gId,
         rootstock_batch_id,
@@ -951,34 +1038,17 @@ const handleGrafting = async (req: Request, res: Response, next: NextFunction) =
         quantity_grafted: qty,
         successful_count: qty,
         failed_count: 0,
-        curing_days: 21,
         survival_rate: 100,
-        notes: notes || grafting_method,
+        notes: notes || 'Graft run created',
       });
 
-      // 8. Record initial curing survival observation
-      await trx('curing_survival_observations').insert({
-        batch_id: gId,
-        observation_date: graftDateVal,
-        total_grafts_attempted: qty,
-        healed_count: qty,
-        failed_count: 0,
-        dead_count: 0,
-        surviving_count: qty,
-        survival_rate: 100,
-        notes: 'Initial day of grafting union setting',
-        recorded_by_user_id: req.user!.id,
-        created_at: db.fn.now(),
-      });
-
-      // 9. Initial ledger movement
       await trx('inventory_movements').insert({
         batch_id: gId,
         movement_type: 'GRAFTING_OUT',
         quantity_change: qty,
         resulting_balance: qty,
         reference_type: 'GRAFTING',
-        notes: `Batch created from ${qty} grafts`,
+        notes: `Initial created grafted batch of ${qty} plants`,
         created_by_user_id: req.user!.id,
         created_at: db.fn.now(),
       });
@@ -988,25 +1058,27 @@ const handleGrafting = async (req: Request, res: Response, next: NextFunction) =
         batchId: gId,
         serial_number,
         plant_variety: combinedVariety,
-        quantity: qty,
+        quantity_grafted: qty,
+        grafting_date: graftDateVal,
       };
     });
 
     await AuditService.log({
       userId: req.user!.id,
-      action: 'GRAFTING_RUN_CREATED',
+      action: 'GRAFTING_CREATED',
       entityType: 'GRAFTING',
-      newValues: { createdGraftBatch, rootstock_batch_id, scion_batch_id, qty },
+      newValues: { graft: createdGraftBatch },
       ipAddress: req.ip,
     });
 
     return res.status(201).json({
       success: true,
-      message: `Grafting successful. Created batch ${createdGraftBatch.serial_number} (${qty} units).`,
+      message: `Successfully created graft run ${createdGraftBatch.serial_number} (${qty} plants).`,
+      graft: createdGraftBatch,
       batch: createdGraftBatch,
     });
   } catch (err: any) {
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: err.message || 'Grafting execution failed.' });
   }
 };
 
@@ -1396,41 +1468,55 @@ router.post('/ready-for-sale/promote', requirePermission('INVENTORY_WRITE'), asy
 router.get('/dashboard-metrics', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const rootstockBatches = await db('batches')
-      .where({ batch_type: 'ROOTSTOCK' })
+      .where(function () {
+        this.whereIn('designation', ['ROOTSTOCK', 'BOTH']).orWhere('batch_type', 'ROOTSTOCK');
+      })
       .whereNot('status', 'DISCARDED')
       .count('id as count')
       .first();
 
     const scionBatches = await db('batches')
-      .where({ batch_type: 'SCION' })
+      .where(function () {
+        this.whereIn('designation', ['SCION', 'BOTH']).orWhere('batch_type', 'SCION');
+      })
       .whereNot('status', 'DISCARDED')
       .count('id as count')
       .first();
 
     const seedsSownRes = await db('sowing_records').sum('seeds_sown as total').first();
-    const seedsSown = parseInt(String(seedsSownRes?.total || '0'), 10);
+    const totalSeedsSown = parseInt(String(seedsSownRes?.total || '0'), 10);
 
     const germinatedPlantsRes = await db('germination_observations').sum('germinated_count as total').first();
-    const germinatedPlants = parseInt(String(germinatedPlantsRes?.total || '0'), 10);
+    const totalGerminated = parseInt(String(germinatedPlantsRes?.total || '0'), 10);
 
-    const readyForGraftingRes = await db('batches')
-      .whereIn('batch_type', ['ROOTSTOCK', 'SCION'])
-      .whereIn('status', ['READY_FOR_GRAFTING', 'Ready for Grafting', 'ACTIVE'])
+    const rootstockAvailRes = await db('batches')
+      .where(function () {
+        this.whereIn('designation', ['ROOTSTOCK', 'BOTH']).orWhere('batch_type', 'ROOTSTOCK');
+      })
+      .whereNot('status', 'DISCARDED')
+      .where('current_quantity', '>', 0)
       .sum('current_quantity as total')
       .first();
-    const plantsReadyForGrafting = parseInt(String(readyForGraftingRes?.total || '0'), 10);
+    const rootstockAvailable = parseInt(String(rootstockAvailRes?.total || '0'), 10);
 
-    const activeGraftingBatches = await db('batches')
-      .where({ batch_type: 'GRAFTED' })
+    const scionAvailRes = await db('batches')
+      .where(function () {
+        this.whereIn('designation', ['SCION', 'BOTH']).orWhere('batch_type', 'SCION');
+      })
       .whereNot('status', 'DISCARDED')
-      .count('id as count')
+      .where('current_quantity', '>', 0)
+      .sum('current_quantity as total')
       .first();
+    const scionAvailable = parseInt(String(scionAvailRes?.total || '0'), 10);
 
-    const plantsUnderCuringRes = await db('batches')
+    const totalGraftsRes = await db('grafting_records').sum('quantity_grafted as total').first();
+    const totalGraftsAttempted = parseInt(String(totalGraftsRes?.total || '0'), 10);
+
+    const plantsInCuringRes = await db('batches')
       .where({ batch_type: 'GRAFTED', status: 'CURING' })
       .sum('current_quantity as total')
       .first();
-    const plantsUnderCuring = parseInt(String(plantsUnderCuringRes?.total || '0'), 10);
+    const plantsInCuring = parseInt(String(plantsInCuringRes?.total || '0'), 10);
 
     const readyForSalePlantsRes = await db('batches')
       .where({ batch_type: 'READY_FOR_SALE', status: 'READY' })
@@ -1441,17 +1527,51 @@ router.get('/dashboard-metrics', async (req: Request, res: Response, next: NextF
     const totalPlantsSoldRes = await db('order_items').sum('quantity as total').first();
     const totalPlantsSold = parseInt(String(totalPlantsSoldRes?.total || '0'), 10);
 
+    // Curing survival rate calculation
+    const curingStats = await db('grafting_records')
+      .sum('quantity_grafted as attempted')
+      .sum('successful_count as healed')
+      .first();
+    const attempted = parseInt(String(curingStats?.attempted || '0'), 10);
+    const healed = parseInt(String(curingStats?.healed || '0'), 10);
+    const curingSurvivalRate = attempted > 0 ? Math.round((healed / attempted) * 100) : 100;
+
+    // Stage counts
+    const sownCount = await db('batches').where('stage', 'SOWN').whereNot('status', 'DISCARDED').count('id as c').first();
+    const germinatedCount = await db('batches').where('stage', 'GERMINATED').whereNot('status', 'DISCARDED').count('id as c').first();
+    const growingCount = await db('batches').where('stage', 'GROWING').whereNot('status', 'DISCARDED').count('id as c').first();
+    const graftedCount = await db('batches').where('batch_type', 'GRAFTED').whereNot('status', 'DISCARDED').count('id as c').first();
+    const curingCount = await db('batches').where({ batch_type: 'GRAFTED', status: 'CURING' }).count('id as c').first();
+    const readyCount = await db('batches').where({ batch_type: 'READY_FOR_SALE' }).whereNot('status', 'DISCARDED').count('id as c').first();
+    const soldCount = await db('orders').count('id as c').first();
+
     return res.json({
       metrics: {
-        totalRootstockBatches: parseInt(String(rootstockBatches?.count || '0'), 10),
-        totalScionBatches: parseInt(String(scionBatches?.count || '0'), 10),
-        seedsSown,
-        germinatedPlants,
-        plantsReadyForGrafting,
-        activeGraftingBatches: parseInt(String(activeGraftingBatches?.count || '0'), 10),
-        plantsUnderCuring,
+        totalSeedsSown,
+        seedsSown: totalSeedsSown,
+        totalGerminated,
+        germinatedPlants: totalGerminated,
+        rootstockAvailable,
+        plantsReadyForGrafting: rootstockAvailable,
+        scionAvailable,
+        totalGraftsAttempted,
+        activeGraftingBatches: totalGraftsAttempted,
+        plantsInCuring,
+        plantsUnderCuring: plantsInCuring,
+        curingSurvivalRate,
         readyForSalePlants,
         totalPlantsSold,
+        totalRootstockBatches: parseInt(String(rootstockBatches?.count || '0'), 10),
+        totalScionBatches: parseInt(String(scionBatches?.count || '0'), 10),
+        stageCounts: {
+          sown: parseInt(String(sownCount?.c || '0'), 10),
+          germinated: parseInt(String(germinatedCount?.c || '0'), 10),
+          growing: parseInt(String(growingCount?.c || '0'), 10),
+          grafted: parseInt(String(graftedCount?.c || '0'), 10),
+          curing: parseInt(String(curingCount?.c || '0'), 10),
+          readyForSale: parseInt(String(readyCount?.c || '0'), 10),
+          sold: parseInt(String(soldCount?.c || '0'), 10),
+        },
       },
     });
   } catch (err) {
