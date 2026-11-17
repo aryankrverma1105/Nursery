@@ -470,10 +470,39 @@ export const TracePage: React.FC = () => {
                 Close
               </button>
               <button
-                onClick={() => window.print()}
-                className="px-5 py-2.5 rounded-xl bg-brand-800 text-white text-xs font-bold shadow active:scale-95"
+                onClick={() => {
+                  const printWin = window.open('', '_blank', 'width=450,height=600');
+                  if (printWin && labelData) {
+                    printWin.document.write(`
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <title>Print Label</title>
+                          <style>
+                            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #fff; }
+                            @media print { body { display: block; margin: 0; } .no-print { display: none !important; } }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="no-print" style="position: fixed; top: 10px; right: 10px;">
+                            <button onclick="window.print()" style="padding: 8px 16px; background: #244930; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Print Label</button>
+                          </div>
+                          <div>${labelData.printableHtml}</div>
+                          <script>
+                            window.onload = function() {
+                              setTimeout(function() { window.print(); }, 300);
+                            };
+                          </script>
+                        </body>
+                      </html>
+                    `);
+                    printWin.document.close();
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-brand-800 text-white text-xs font-bold shadow active:scale-95 flex items-center gap-1.5"
               >
-                Print Label
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Label</span>
               </button>
             </div>
           </div>

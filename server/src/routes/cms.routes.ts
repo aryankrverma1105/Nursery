@@ -1,5 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { db } from '../db/connection.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { invalidatePublicCache } from './public.routes.js';
@@ -7,8 +10,70 @@ import { AuditService } from '../services/audit/AuditService.js';
 
 const router = Router();
 
+const uploadDir = path.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const cleanName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    cb(null, `${cleanName}-${Date.now()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (_req, file, cb) => {
+    const allowed = /jpeg|jpg|png|webp|gif|svg/;
+    const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+    if (allowed.test(ext) || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, WebP, GIF, SVG) are allowed.'));
+    }
+  },
+});
+
 // Restrict all CMS endpoints to ADMIN or authorized SUPERVISOR
 router.use(requireAuth, requireRole(['ADMIN', 'SUPERVISOR']));
+
+// 0. IMAGE UPLOAD HANDLER (Multipart file, base64 dataUrl, or image URL)
+router.post('/upload', upload.single('image'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.file) {
+      const url = `/uploads/${req.file.filename}`;
+      return res.json({ url, success: true });
+    }
+
+    // Support base64 dataUrl
+    if (req.body?.dataUrl) {
+      const { dataUrl } = req.body;
+      const matches = dataUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1] === 'jpeg' ? '.jpg' : `.${matches[1]}`;
+        const buffer = Buffer.from(matches[2], 'base64');
+        const filename = `img-drop-${Date.now()}${ext}`;
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, buffer);
+        return res.json({ url: `/uploads/${filename}`, success: true });
+      }
+    }
+
+    if (req.body?.imageUrl) {
+      return res.json({ url: req.body.imageUrl, success: true });
+    }
+
+    return res.status(400).json({ error: 'No image file or valid image data provided.' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // 1. GET ALL HOMEPAGE SECTIONS
 router.get('/sections', async (req: Request, res: Response, next: NextFunction) => {
@@ -312,6 +377,113 @@ router.patch('/enquiries/:id', async (req: Request, res: Response, next: NextFun
       updated_at: db.fn.now(),
     });
     return res.json({ message: 'Enquiry updated successfully.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7. GALLERY MANAGEMENT (CRUD)
+router.get('/gallery', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await db('gallery_items').orderBy('display_order', 'asc');
+    return res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/gallery', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, caption, category, image_url, display_order, is_active } = req.body;
+    if (!title || !image_url) {
+      return res.status(400).json({ error: 'Title and image URL are required.' });
+    }
+
+    const inserted = await db('gallery_items').insert({
+      title,
+      caption: caption || '',
+      category: category || 'General',
+      image_url,
+      display_order: display_order !== undefined ? Number(display_order) : 0,
+      is_active: is_active !== undefined ? Boolean(is_active) : true,
+    });
+
+    invalidatePublicCache();
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'CREATE_GALLERY_ITEM',
+      entityType: 'GALLERY',
+      newValues: { title, category, image_url },
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({ message: 'Gallery item created successfully.', id: inserted[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/gallery/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { title, caption, category, image_url, display_order, is_active } = req.body;
+
+    const existing = await db('gallery_items').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ error: 'Gallery item not found.' });
+    }
+
+    await db('gallery_items')
+      .where({ id })
+      .update({
+        title: title !== undefined ? title : existing.title,
+        caption: caption !== undefined ? caption : existing.caption,
+        category: category !== undefined ? category : existing.category,
+        image_url: image_url !== undefined ? image_url : existing.image_url,
+        display_order: display_order !== undefined ? Number(display_order) : existing.display_order,
+        is_active: is_active !== undefined ? Boolean(is_active) : existing.is_active,
+      });
+
+    invalidatePublicCache();
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'UPDATE_GALLERY_ITEM',
+      entityType: 'GALLERY',
+      entityId: String(id),
+      oldValues: existing,
+      newValues: req.body,
+      ipAddress: req.ip,
+    });
+
+    return res.json({ message: 'Gallery item updated successfully.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/gallery/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const existing = await db('gallery_items').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ error: 'Gallery item not found.' });
+    }
+
+    await db('gallery_items').where({ id }).delete();
+    invalidatePublicCache();
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'DELETE_GALLERY_ITEM',
+      entityType: 'GALLERY',
+      entityId: String(id),
+      oldValues: existing,
+      ipAddress: req.ip,
+    });
+
+    return res.json({ message: 'Gallery item deleted successfully.' });
   } catch (err) {
     next(err);
   }

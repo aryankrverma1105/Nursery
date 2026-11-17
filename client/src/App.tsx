@@ -37,6 +37,7 @@ import SaleWizard from './app/pages/wizards/SaleWizard';
 import CmsSectionsPage from './app/pages/cms/CmsSectionsPage';
 import CmsProductsPage from './app/pages/cms/CmsProductsPage';
 import CmsBannersPage from './app/pages/cms/CmsBannersPage';
+import CmsGalleryPage from './app/pages/cms/CmsGalleryPage';
 import CmsEnquiriesPage from './app/pages/cms/CmsEnquiriesPage';
 import CmsSettingsPage from './app/pages/cms/CmsSettingsPage';
 import AuditLogsPage from './app/pages/cms/AuditLogsPage';
@@ -308,6 +309,16 @@ export const App: React.FC = () => {
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <PrivateLayout>
                 <CmsBannersPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/cms/gallery"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
+              <PrivateLayout>
+                <CmsGalleryPage />
               </PrivateLayout>
             </ProtectedRoute>
           }

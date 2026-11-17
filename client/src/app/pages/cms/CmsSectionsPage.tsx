@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api';
 import { LayoutDashboard, Save, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react';
+import { ImageDropzone } from '../../components/ImageDropzone';
 
 export const CmsSectionsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -165,6 +166,41 @@ export const CmsSectionsPage: React.FC = () => {
                 className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-earth-50/50 dark:bg-stone-950 text-xs"
               />
             </div>
+
+            {/* Drag & Drop Image for Sections that contain an image */}
+            {(editingSection.section_key === 'hero' ||
+              editingSection.section_key === 'about' ||
+              editingSection.content?.heroImage !== undefined ||
+              editingSection.content?.image !== undefined) && (
+              <div>
+                <label className="block text-xs font-bold mb-1 text-stone-700 dark:text-stone-300">
+                  {editingSection.section_key === 'hero'
+                    ? 'Hero Background / Showcase Image'
+                    : 'Section Feature Image'} (Drag & Drop)
+                </label>
+                <ImageDropzone
+                  value={
+                    editingSection.content?.heroImage ||
+                    editingSection.content?.image ||
+                    ''
+                  }
+                  onChange={(newUrl) => {
+                    const updatedContent = { ...(editingSection.content || {}) };
+                    if (editingSection.section_key === 'hero') {
+                      updatedContent.heroImage = newUrl;
+                    } else {
+                      updatedContent.image = newUrl;
+                    }
+                    setEditingSection({
+                      ...editingSection,
+                      content: updatedContent,
+                    });
+                  }}
+                  aspectRatio="video"
+                  placeholderText="Drop section image here, or click to browse"
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button

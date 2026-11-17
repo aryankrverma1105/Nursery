@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api';
 import { Plus, Edit2, Link as LinkIcon, Check, FileText } from 'lucide-react';
+import { ImageDropzone } from '../../components/ImageDropzone';
 
 export const CmsProductsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -278,13 +279,12 @@ export const CmsProductsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-1">Primary Image URL</label>
-                <input
-                  type="url"
+                <ImageDropzone
+                  label="Primary Product Photo (Drag & Drop or Browse)"
                   value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-earth-50/50 dark:bg-stone-950 text-xs"
+                  onChange={setImageUrl}
+                  aspectRatio="square"
+                  placeholderText="Drop product photo here, or click to browse"
                 />
               </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api';
 import { Settings, Save, QrCode } from 'lucide-react';
+import { ImageDropzone } from '../../components/ImageDropzone';
 
 export const CmsSettingsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -133,6 +134,16 @@ export const CmsSettingsPage: React.FC = () => {
               value={formValues.contact_address || ''}
               onChange={(e) => handleChange('contact_address', e.target.value)}
               className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-earth-50/50 dark:bg-stone-950 text-sm"
+            />
+          </div>
+
+          <div>
+            <ImageDropzone
+              label="Official Farm Brand Logo (Drag & Drop or Browse)"
+              value={formValues.site_logo || ''}
+              onChange={(url) => handleChange('site_logo', url)}
+              aspectRatio="square"
+              placeholderText="Drop official farm logo here, or click to browse"
             />
           </div>
         </div>

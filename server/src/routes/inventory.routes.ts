@@ -4,6 +4,7 @@ import { db } from '../db/connection.js';
 import { requireAuth, requireRole, requirePermission } from '../middleware/auth.js';
 import identifierService from '../services/identifier/IdentifierService.js';
 import { AuditService } from '../services/audit/AuditService.js';
+import { invalidatePublicCache } from './public.routes.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -109,8 +110,12 @@ router.post('/mother-trees', requirePermission('INVENTORY_WRITE'), async (req: R
 // 2. GET BATCHES (with optional filtering by batch_type and status)
 router.get('/batches', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { type, status } = req.query;
+    const { type, status, includeDiscarded } = req.query;
     let query = db('batches').orderBy('created_at', 'desc');
+
+    if (includeDiscarded !== 'true' && status !== 'DISCARDED') {
+      query = query.whereNot({ status: 'DISCARDED' });
+    }
 
     if (type && type !== 'ALL') {
       query = query.where({ batch_type: type as string });
@@ -649,6 +654,76 @@ router.get('/movements', async (req: Request, res: Response, next: NextFunction)
 
     const movements = await query;
     return res.json({ movements });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 9. DELETE / DISCARD INVENTORY BATCH
+router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Manual stock write-off / discard' } = req.body;
+
+    const batch = await db('batches').where({ id }).first();
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found.' });
+    }
+
+    await db.transaction(async (trx) => {
+      // 1. If batch still has live units, write ledger movement to clear balance to 0
+      if (batch.current_quantity > 0) {
+        await trx('inventory_movements').insert({
+          batch_id: id,
+          movement_type: 'MORTALITY_LOSS',
+          quantity: -batch.current_quantity,
+          reference_type: 'DISCARD_ADJUSTMENT',
+          reference_id: String(id),
+          notes: `Batch discarded: ${reason}`,
+          created_by_user_id: req.user!.id,
+          created_at: db.fn.now(),
+        });
+      }
+
+      // 2. Set batch status to DISCARDED and quantity to 0
+      await trx('batches').where({ id }).update({
+        status: 'DISCARDED',
+        current_quantity: 0,
+        notes: batch.notes ? `${batch.notes} | Discarded: ${reason}` : `Discarded: ${reason}`,
+        updated_at: db.fn.now(),
+      });
+
+      // 3. Remove any active catalogue product links
+      await trx('product_batch_links').where({ batch_id: id }).delete();
+
+      // 4. Update identifier status
+      await trx('identifiers').where({ entity_type: 'BATCH', entity_id: id }).update({
+        status: 'RETIRED',
+        retired_at: db.fn.now(),
+      });
+    });
+
+    invalidatePublicCache();
+
+    await AuditService.log({
+      userId: req.user!.id,
+      action: 'DELETE_BATCH',
+      entityType: 'BATCH',
+      entityId: String(id),
+      oldValues: {
+        serial_number: batch.serial_number,
+        plant_variety: batch.plant_variety,
+        current_quantity: batch.current_quantity,
+        status: batch.status,
+      },
+      newValues: { status: 'DISCARDED', current_quantity: 0, reason },
+      ipAddress: req.ip,
+    });
+
+    return res.json({
+      success: true,
+      message: `Batch ${batch.serial_number} (${batch.plant_variety}) successfully discarded from inventory.`,
+    });
   } catch (err) {
     next(err);
   }

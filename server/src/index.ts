@@ -30,11 +30,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:', 'https:', 'http:'],
-        connectSrc: ["'self'", CLIENT_ORIGIN, 'http://localhost:5000', 'http://localhost:5173'],
+        imgSrc: ["'self'", 'data:', 'https:', 'http:', 'blob:'],
+        connectSrc: ["'self'", CLIENT_ORIGIN, 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5000', 'http://127.0.0.1:5173'],
       },
     },
     crossOriginEmbedderPolicy: false,

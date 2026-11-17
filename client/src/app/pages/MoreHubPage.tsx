@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ShieldCheck,
   FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export const MoreHubPage: React.FC = () => {
@@ -119,6 +120,19 @@ export const MoreHubPage: React.FC = () => {
                 <LayoutDashboard className="w-5 h-5 text-purple-600" />
                 <span className="font-bold text-sm text-stone-800 dark:text-stone-200">
                   Homepage Section Editor (CMS)
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-400" />
+            </Link>
+
+            <Link
+              to="/app/cms/gallery"
+              className="p-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+            >
+              <div className="flex items-center gap-3">
+                <ImageIcon className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold text-sm text-stone-800 dark:text-stone-200">
+                  Farm Gallery Manager (Photos)
                 </span>
               </div>
               <ChevronRight className="w-4 h-4 text-stone-400" />

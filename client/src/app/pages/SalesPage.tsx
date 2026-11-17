@@ -78,13 +78,13 @@ export const SalesPage: React.FC = () => {
                 </div>
 
                 <a
-                  href={`/api/sales/orders/${o.id}/invoice`}
+                  href={`/api/sales/orders/${o.id}/invoice?print=true`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-800 dark:text-stone-200 font-bold px-3.5 py-2 rounded-xl text-xs border border-stone-300 dark:border-stone-700 shadow-xs active:scale-95"
+                  className="inline-flex items-center gap-1.5 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/60 dark:hover:bg-brand-900/60 text-brand-800 dark:text-brand-300 font-bold px-3.5 py-2 rounded-xl text-xs border border-brand-200 dark:border-brand-800 shadow-xs active:scale-95 transition-all"
                 >
-                  <Printer className="w-3.5 h-3.5 text-brand-600" />
-                  <span>Print Invoice</span>
+                  <Printer className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                  <span>Print Invoice / PDF</span>
                 </a>
               </div>
             </div>

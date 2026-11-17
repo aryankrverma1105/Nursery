@@ -218,12 +218,38 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
           td { padding: 10px; border-bottom: 1px solid #e7e5e4; font-size: 14px; }
           .total-box { margin-top: 20px; text-align: right; font-size: 18px; font-weight: bold; }
           .footer { margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 16px; font-size: 12px; color: #78716c; text-align: center; }
-          @media print { button { display: none; } }
+          .no-print { margin-bottom: 20px; text-align: right; }
+          .print-btn {
+            background: #244930;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+          }
+          .print-btn:hover {
+            background: #1b3824;
+            transform: translateY(-1px);
+          }
+          @media print {
+            body { padding: 0; margin: 0; }
+            .no-print, button { display: none !important; }
+            @page { margin: 1.5cm; }
+          }
         </style>
       </head>
       <body>
-        <div style="text-align: right; margin-bottom: 16px;">
-          <button onclick="window.print()" style="background: #244930; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Print / Save as PDF</button>
+        <div class="no-print">
+          <button id="printBtn" type="button" class="print-btn" onclick="triggerPrint()">
+            🖨️ Print / Save as PDF
+          </button>
         </div>
         <div class="header">
           <div>
@@ -292,10 +318,34 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
           <div>This is a computer-generated tax invoice for certified horticultural stock.</div>
           <div>All plant material carries verified rootstock and mother tree lineage. Thank you for your patronage!</div>
         </div>
+
+        <script>
+          function triggerPrint() {
+            try {
+              window.focus();
+              window.print();
+            } catch (err) {
+              console.error('Print trigger error:', err);
+            }
+          }
+
+          document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('printBtn');
+            if (btn) {
+              btn.addEventListener('click', triggerPrint);
+            }
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('print') === 'true' || urlParams.get('autoprint') === 'true') {
+              setTimeout(triggerPrint, 400);
+            }
+          });
+        </script>
       </body>
       </html>
     `;
 
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(printableHtml);
   } catch (err) {
     next(err);

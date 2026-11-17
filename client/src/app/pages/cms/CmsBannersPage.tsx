@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api';
 import { Plus, ShieldAlert, Trash2, Calendar } from 'lucide-react';
+import { ImageDropzone } from '../../components/ImageDropzone';
 
 export const CmsBannersPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -10,6 +11,7 @@ export const CmsBannersPage: React.FC = () => {
   const [subtitle, setSubtitle] = useState('');
   const [badgeText, setBadgeText] = useState('Advance Booking');
   const [linkUrl, setLinkUrl] = useState('/products');
+  const [imageUrl, setImageUrl] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState(
     new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -51,6 +53,7 @@ export const CmsBannersPage: React.FC = () => {
       subtitle,
       badge_text: badgeText,
       link_url: linkUrl,
+      image_url: imageUrl,
       start_date: startDate,
       expiry_date: expiryDate,
       is_active: true,
@@ -165,6 +168,16 @@ export const CmsBannersPage: React.FC = () => {
                   onChange={(e) => setSubtitle(e.target.value)}
                   placeholder="e.g. Reserve certified Kesar mango grafts"
                   className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-earth-50/50 dark:bg-stone-950 text-xs"
+                />
+              </div>
+
+              <div>
+                <ImageDropzone
+                  label="Banner Graphic / Background Image (Drag & Drop or Browse)"
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  aspectRatio="banner"
+                  placeholderText="Drop banner image here, or click to browse"
                 />
               </div>
 

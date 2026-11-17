@@ -19,6 +19,7 @@ import {
   Sprout,
   Users,
   FileSpreadsheet,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -161,6 +162,18 @@ export const Sidebar: React.FC = () => {
               >
                 <ShieldAlert className="w-4 h-4 text-brand-400" />
                 <span>Banners & Offers</span>
+              </NavLink>
+
+              <NavLink
+                to="/app/cms/gallery"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    isActive ? 'bg-brand-800 text-white' : 'hover:bg-stone-800 text-stone-300'
+                  }`
+                }
+              >
+                <ImageIcon className="w-4 h-4 text-brand-400" />
+                <span>Gallery Manager</span>
               </NavLink>
 
               <NavLink
