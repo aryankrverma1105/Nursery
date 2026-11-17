@@ -442,3 +442,4 @@ export const TraceabilityPage: React.FC = () => {
 };
 
 export default TraceabilityPage;
+

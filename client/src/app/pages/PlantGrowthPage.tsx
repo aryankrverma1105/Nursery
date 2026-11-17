@@ -586,3 +586,4 @@ export const PlantGrowthPage: React.FC = () => {
 };
 
 export default PlantGrowthPage;
+

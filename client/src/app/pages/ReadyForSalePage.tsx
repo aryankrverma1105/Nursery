@@ -433,3 +433,4 @@ export const ReadyForSalePage: React.FC = () => {
 };
 
 export default ReadyForSalePage;
+

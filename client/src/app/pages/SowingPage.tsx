@@ -208,16 +208,16 @@ export const SowingPage: React.FC = () => {
       )}
 
       {/* SOWING REGISTRATION FORM */}
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-stone-900 p-6 sm:p-8 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm space-y-6">
         {/* CHECKBOXES FOR PLANT TYPE SELECTION */}
         <div>
-          <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wider mb-2">
+          <label className="block text-sm font-black text-stone-800 dark:text-stone-200 uppercase tracking-wider mb-2.5">
             Select Plant Material To Sow:
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Rootstock Checkbox Card */}
             <label
-              className={`flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+              className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                 selectRootstock
                   ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
                   : 'border-stone-200 dark:border-stone-800 hover:border-stone-300'
@@ -227,16 +227,16 @@ export const SowingPage: React.FC = () => {
                 type="checkbox"
                 checked={selectRootstock}
                 onChange={(e) => setSelectRootstock(e.target.checked)}
-                className="w-5 h-5 mt-0.5 accent-emerald-600 rounded cursor-pointer"
+                className="w-5 h-5 mt-1 accent-emerald-600 rounded cursor-pointer"
               />
               <div>
-                <div className="font-bold text-sm text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <div className="font-black text-base text-stone-900 dark:text-stone-100 flex items-center gap-2">
                   <span>Rootstock</span>
-                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-xs bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 rounded-full font-mono font-bold">
                     ROOT-YYYY-XXXX
                   </span>
                 </div>
-                <div className="text-xs text-stone-500 mt-0.5">
+                <div className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Vigorous hardy base seedling sown for root graft foundation.
                 </div>
               </div>
@@ -244,7 +244,7 @@ export const SowingPage: React.FC = () => {
 
             {/* Scion Checkbox Card */}
             <label
-              className={`flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+              className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                 selectScion
                   ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
                   : 'border-stone-200 dark:border-stone-800 hover:border-stone-300'
@@ -254,16 +254,16 @@ export const SowingPage: React.FC = () => {
                 type="checkbox"
                 checked={selectScion}
                 onChange={(e) => setSelectScion(e.target.checked)}
-                className="w-5 h-5 mt-0.5 accent-emerald-600 rounded cursor-pointer"
+                className="w-5 h-5 mt-1 accent-emerald-600 rounded cursor-pointer"
               />
               <div>
-                <div className="font-bold text-sm text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <div className="font-black text-base text-stone-900 dark:text-stone-100 flex items-center gap-2">
                   <span>Scion</span>
-                  <span className="text-[10px] bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-xs bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-2.5 py-0.5 rounded-full font-mono font-bold">
                     SCION-YYYY-XXXX
                   </span>
                 </div>
-                <div className="text-xs text-stone-500 mt-0.5">
+                <div className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Top-cultivar seedling mother line for certified shoots & buds.
                 </div>
               </div>
@@ -271,8 +271,8 @@ export const SowingPage: React.FC = () => {
           </div>
 
           {selectRootstock && selectScion && (
-            <div className="mt-2 text-xs font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/60 p-2.5 rounded-xl border border-brand-200 dark:border-brand-900 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="mt-3 text-sm font-semibold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-950/60 p-3 rounded-2xl border border-brand-200 dark:border-brand-900 flex items-center gap-2.5">
+              <CheckCircle className="w-5 h-5 flex-shrink-0 text-brand-600" />
               <span>
                 <strong>"Both" selected:</strong> Two separate independent batches will be generated simultaneously with individual varieties and seed counts.
               </span>
@@ -328,20 +328,20 @@ export const SowingPage: React.FC = () => {
 
         {/* ROOTSTOCK SECTION */}
         {selectRootstock && (
-          <div className="p-4 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/60 space-y-3">
+          <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <Sprout className="w-4 h-4" />
+              <div className="text-sm font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <Sprout className="w-5 h-5" />
                 Rootstock Sowing Details
               </div>
-              <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+              <span className="text-xs sm:text-sm font-mono text-emerald-700 dark:text-emerald-400 font-bold">
                 Target Batch: ROOT-2026-XXXX
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-400 uppercase mb-1">
+                <label className="block text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase mb-1.5">
                   Rootstock Variety *
                 </label>
                 <input
@@ -350,12 +350,12 @@ export const SowingPage: React.FC = () => {
                   onChange={(e) => setRootstockVariety(e.target.value)}
                   required
                   placeholder="e.g. Desi Polyembryonic Mango"
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-400 uppercase mb-1">
+                <label className="block text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase mb-1.5">
                   Seeds Sown Count *
                 </label>
                 <input
@@ -364,7 +364,7 @@ export const SowingPage: React.FC = () => {
                   value={rootstockSeedsSown}
                   onChange={(e) => setRootstockSeedsSown(parseInt(e.target.value) || 0)}
                   required
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base font-black focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
             </div>
@@ -373,20 +373,20 @@ export const SowingPage: React.FC = () => {
 
         {/* SCION SECTION */}
         {selectScion && (
-          <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/60 space-y-3">
+          <div className="p-5 rounded-2xl bg-teal-50/50 dark:bg-teal-950/30 border-2 border-teal-300 dark:border-teal-800 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
-                <Sprout className="w-4 h-4" />
+              <div className="text-sm font-black uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-2">
+                <Sprout className="w-5 h-5" />
                 Scion Sowing Details
               </div>
-              <span className="text-[11px] font-mono text-teal-700 dark:text-teal-400 font-semibold">
+              <span className="text-xs sm:text-sm font-mono text-teal-700 dark:text-teal-400 font-bold">
                 Target Batch: SCION-2026-XXXX
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-400 uppercase mb-1">
+                <label className="block text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase mb-1.5">
                   Scion Cultivar / Variety *
                 </label>
                 <input
@@ -395,12 +395,12 @@ export const SowingPage: React.FC = () => {
                   onChange={(e) => setScionVariety(e.target.value)}
                   required
                   placeholder="e.g. Ratnagiri Alphonso / Gir Kesar"
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base focus:ring-2 focus:ring-teal-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-400 uppercase mb-1">
+                <label className="block text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase mb-1.5">
                   Seeds Sown Count *
                 </label>
                 <input
@@ -409,7 +409,7 @@ export const SowingPage: React.FC = () => {
                   value={scionSeedsSown}
                   onChange={(e) => setScionSeedsSown(parseInt(e.target.value) || 0)}
                   required
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm font-bold focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base font-black focus:ring-2 focus:ring-teal-500 outline-none"
                 />
               </div>
             </div>
@@ -540,3 +540,4 @@ export const SowingPage: React.FC = () => {
 };
 
 export default SowingPage;
+

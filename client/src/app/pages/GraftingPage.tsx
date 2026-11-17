@@ -234,13 +234,13 @@ export const GraftingPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* ROOTSTOCK SELECTOR */}
-          <div className="p-4 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 space-y-3">
+          <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-900 space-y-3.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <Sprout className="w-4 h-4" />
+              <label className="text-sm font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <Sprout className="w-5 h-5" />
                 Rootstock Parent Batch *
               </label>
-              <span className="text-[10px] font-bold text-emerald-600">
+              <span className="text-xs font-black text-emerald-700 dark:text-emerald-300">
                 {rootstocks.length} available
               </span>
             </div>
@@ -249,7 +249,7 @@ export const GraftingPage: React.FC = () => {
               value={selectedRootstockId}
               onChange={(e) => setSelectedRootstockId(Number(e.target.value) || '')}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-sm font-semibold outline-none"
+              className="w-full min-h-[48px] px-4 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 text-stone-900 dark:text-stone-100 text-base font-bold outline-none"
             >
               <option value="">-- Choose Rootstock Batch --</option>
               {rootstocks.map((r) => (
@@ -260,19 +260,19 @@ export const GraftingPage: React.FC = () => {
             </select>
 
             {selectedRootstock && (
-              <div className="p-3 rounded-xl bg-white dark:bg-stone-900 border border-emerald-200/80 dark:border-emerald-800 text-xs space-y-1">
+              <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-800 text-sm space-y-1.5 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-stone-900 dark:text-stone-100">
+                  <span className="font-mono font-black text-base text-stone-900 dark:text-stone-100">
                     {selectedRootstock.serial_number}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[10px]">
+                  <span className="px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-black text-xs uppercase tracking-wider">
                     {selectedRootstock.status}
                   </span>
                 </div>
-                <div className="text-stone-600 dark:text-stone-300 font-semibold">{selectedRootstock.plant_variety}</div>
-                <div className="text-stone-500 flex items-center justify-between pt-1">
+                <div className="text-stone-700 dark:text-stone-200 font-bold">{selectedRootstock.plant_variety}</div>
+                <div className="text-stone-500 dark:text-stone-400 flex items-center justify-between pt-1">
                   <span>Available stock:</span>
-                  <strong className="text-emerald-600 text-sm">{selectedRootstock.current_quantity} plants</strong>
+                  <strong className="text-emerald-700 dark:text-emerald-300 text-base font-black font-sans">{selectedRootstock.current_quantity} plants</strong>
                 </div>
               </div>
             )}
@@ -529,3 +529,4 @@ export const GraftingPage: React.FC = () => {
 };
 
 export default GraftingPage;
+

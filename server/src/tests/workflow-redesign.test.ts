@@ -288,3 +288,4 @@ describe('Complete Farm Workflow Redesign - End-to-End Test Suite', () => {
     expect(timeline.curingObservations.length).toBeGreaterThan(0);
   });
 });
+

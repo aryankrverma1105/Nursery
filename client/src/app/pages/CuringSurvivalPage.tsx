@@ -526,3 +526,4 @@ export const CuringSurvivalPage: React.FC = () => {
 };
 
 export default CuringSurvivalPage;
+

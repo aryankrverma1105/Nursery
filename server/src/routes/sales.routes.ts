@@ -274,41 +274,46 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
 
     const printableHtml = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Invoice ${order.invoice_number}</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1c1917; max-width: 800px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #244930; padding-bottom: 20px; }
-          .farm-name { font-size: 22px; font-weight: bold; color: #244930; }
-          .invoice-tag { font-size: 24px; font-weight: bold; color: #57534e; text-align: right; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 40px; color: #1c1917; max-width: 850px; margin: 0 auto; font-size: 15px; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; border-bottom: 3px solid #244930; padding-bottom: 20px; }
+          .farm-name { font-size: 26px; font-weight: 800; color: #244930; letter-spacing: -0.5px; }
+          .invoice-tag { font-size: 26px; font-weight: 900; color: #44403c; text-align: right; }
           .details { display: grid; grid-template-columns: 1fr 1fr; margin: 24px 0; gap: 20px; }
-          .box { background: #fbf9f6; padding: 16px; border-radius: 8px; border: 1px solid #e7e5e4; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background: #244930; color: #fff; text-align: left; padding: 10px; font-size: 13px; }
-          td { padding: 10px; border-bottom: 1px solid #e7e5e4; font-size: 14px; }
-          .total-box { margin-top: 20px; text-align: right; font-size: 18px; font-weight: bold; }
-          .footer { margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 16px; font-size: 12px; color: #78716c; text-align: center; }
-          .no-print { margin-bottom: 20px; text-align: right; }
+          .box { background: #fbf9f6; padding: 18px; border-radius: 12px; border: 1px solid #d6d3d1; }
+          table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 15px; }
+          th { background: #244930; color: #fff; text-align: left; padding: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+          td { padding: 12px; border-bottom: 1px solid #e7e5e4; }
+          .total-box { margin-top: 24px; text-align: right; font-size: 22px; font-weight: 800; }
+          .footer { margin-top: 40px; border-top: 2px dashed #a8a29e; padding-top: 20px; font-size: 13px; color: #78716c; text-align: center; line-height: 1.6; }
+          .no-print { margin-bottom: 24px; text-align: right; }
           .print-btn {
             background: #244930;
             color: #ffffff;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 700;
+            padding: 12px 28px;
+            border: 2px solid #183321;
+            border-radius: 10px;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             transition: all 0.2s;
           }
           .print-btn:hover {
-            background: #1b3824;
-            transform: translateY(-1px);
+            background: #183321;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+          }
+          .print-btn:active {
+            transform: translateY(0);
           }
           @media print {
             body { padding: 0; margin: 0; }
@@ -319,7 +324,7 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
       </head>
       <body>
         <div class="no-print">
-          <button id="printBtn" type="button" class="print-btn" onclick="triggerPrint()">
+          <button id="printBtn" type="button" class="print-btn" onclick="window.focus(); window.print(); return false;">
             🖨️ Print / Save as PDF
           </button>
         </div>

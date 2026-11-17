@@ -57,54 +57,56 @@ export const MoreHubPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-xl mx-auto pb-12">
+    <div className="space-y-6 max-w-xl mx-auto pb-16">
       <div>
-        <h1 className="font-serif text-2xl font-bold text-stone-900 dark:text-stone-100">
+        <h1 className="font-serif text-3xl font-black text-stone-900 dark:text-stone-100">
           Nursery Sections & Hub
         </h1>
-        <p className="text-xs text-stone-500">Access all 10 farm workflow sections, language options and profile</p>
+        <p className="text-sm font-semibold text-stone-600 dark:text-stone-400 mt-1">
+          Access all farm workflow sections, language options and profile
+        </p>
       </div>
 
       {/* User Status Card */}
-      <div className="bg-white dark:bg-stone-900 p-4 rounded-3xl border border-stone-200 dark:border-stone-800 flex items-center justify-between shadow-xs">
+      <div className="bg-white dark:bg-stone-900 p-5 rounded-3xl border border-stone-200 dark:border-stone-800 flex items-center justify-between shadow-sm">
         <div>
-          <div className="font-bold text-base text-stone-900 dark:text-stone-100">{user?.fullName}</div>
-          <div className="text-xs text-stone-500">{user?.email}</div>
-          <div className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-950 text-brand-800 dark:text-brand-300 uppercase">
+          <div className="font-black text-lg text-stone-900 dark:text-stone-100">{user?.fullName}</div>
+          <div className="text-sm font-medium text-stone-500">{user?.email}</div>
+          <div className="inline-block mt-1.5 text-xs font-black px-3 py-1 rounded-lg bg-brand-100 dark:bg-brand-950 text-brand-800 dark:text-brand-300 uppercase tracking-wider">
             {user?.role} ROLE
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="text-xs font-bold text-rose-600 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950 flex items-center gap-1 cursor-pointer"
+          className="text-sm font-bold text-rose-600 dark:text-rose-400 px-3.5 py-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/60 flex items-center gap-1.5 cursor-pointer border border-rose-200 dark:border-rose-900"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-5 h-5" />
           <span>Logout</span>
         </button>
       </div>
 
       {/* Quick Theme & Language Toggles */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <button
           onClick={toggleLanguage}
-          className="p-3.5 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 flex items-center justify-center gap-2 text-xs font-bold text-stone-700 dark:text-stone-300 hover:border-brand-500 cursor-pointer"
+          className="p-4 rounded-2xl bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 flex items-center justify-center gap-2.5 text-sm font-bold text-stone-800 dark:text-stone-200 hover:border-brand-500 cursor-pointer shadow-xs"
         >
-          <Globe className="w-4 h-4 text-brand-600" />
+          <Globe className="w-5 h-5 text-brand-600" />
           <span>{i18n.language.startsWith('hi') ? 'Switch to English' : 'हिंदी में बदलें'}</span>
         </button>
 
         <button
           onClick={toggleTheme}
-          className="p-3.5 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 flex items-center justify-center gap-2 text-xs font-bold text-stone-700 dark:text-stone-300 hover:border-brand-500 cursor-pointer"
+          className="p-4 rounded-2xl bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 flex items-center justify-center gap-2.5 text-sm font-bold text-stone-800 dark:text-stone-200 hover:border-brand-500 cursor-pointer shadow-xs"
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-600" />}
+          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-stone-600" />}
           <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
         </button>
       </div>
 
       {/* Farm Workflow List */}
-      <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 overflow-hidden divide-y divide-stone-100 dark:divide-stone-800 shadow-xs">
-        <div className="p-3.5 bg-stone-50 dark:bg-stone-850 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+      <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 overflow-hidden divide-y divide-stone-100 dark:divide-stone-800 shadow-sm">
+        <div className="p-4 bg-stone-50 dark:bg-stone-850 text-xs font-black text-stone-500 dark:text-stone-400 uppercase tracking-wider">
           Complete Operational Workflow
         </div>
 
@@ -114,16 +116,18 @@ export const MoreHubPage: React.FC = () => {
             <Link
               key={item.to}
               to={item.to}
-              className="p-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850 transition-colors"
+              className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850 transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-5 h-5 ${item.color}`} />
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center flex-shrink-0">
+                  <Icon className={`w-6 h-6 stroke-[2.2] ${item.color}`} />
+                </div>
                 <div>
-                  <div className="font-bold text-sm text-stone-800 dark:text-stone-200">{item.title}</div>
-                  <div className="text-[11px] text-stone-400">{item.desc}</div>
+                  <div className="font-bold text-base text-stone-900 dark:text-stone-100">{item.title}</div>
+                  <div className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 font-medium mt-0.5">{item.desc}</div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-stone-400" />
+              <ChevronRight className="w-5 h-5 text-stone-400" />
             </Link>
           );
         })}
@@ -131,53 +135,61 @@ export const MoreHubPage: React.FC = () => {
 
       {/* Admin CMS Links */}
       {isAdmin && (
-        <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 overflow-hidden divide-y divide-stone-100 dark:divide-stone-800 shadow-xs">
-          <div className="p-3.5 bg-stone-50 dark:bg-stone-850 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+        <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 overflow-hidden divide-y divide-stone-100 dark:divide-stone-800 shadow-sm">
+          <div className="p-4 bg-stone-50 dark:bg-stone-850 text-xs font-black text-stone-500 dark:text-stone-400 uppercase tracking-wider">
             Website & CMS Administration
           </div>
 
           <Link
             to="/app/cms/sections"
-            className="p-3.5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+            className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
           >
-            <div className="flex items-center gap-3">
-              <LayoutDashboard className="w-4 h-4 text-brand-600" />
-              <span className="font-semibold text-xs text-stone-800 dark:text-stone-200">Homepage Sections</span>
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950 flex items-center justify-center">
+                <LayoutDashboard className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              </div>
+              <span className="font-bold text-base text-stone-900 dark:text-stone-100">Homepage Sections</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+            <ChevronRight className="w-5 h-5 text-stone-400" />
           </Link>
 
           <Link
             to="/app/cms/products"
-            className="p-3.5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+            className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
           >
-            <div className="flex items-center gap-3">
-              <FileSpreadsheet className="w-4 h-4 text-brand-600" />
-              <span className="font-semibold text-xs text-stone-800 dark:text-stone-200">Catalogue Products</span>
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950 flex items-center justify-center">
+                <FileSpreadsheet className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              </div>
+              <span className="font-bold text-base text-stone-900 dark:text-stone-100">Catalogue Products</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+            <ChevronRight className="w-5 h-5 text-stone-400" />
           </Link>
 
           <Link
             to="/app/cms/gallery"
-            className="p-3.5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+            className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
           >
-            <div className="flex items-center gap-3">
-              <ImageIcon className="w-4 h-4 text-brand-600" />
-              <span className="font-semibold text-xs text-stone-800 dark:text-stone-200">Gallery Media</span>
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950 flex items-center justify-center">
+                <ImageIcon className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              </div>
+              <span className="font-bold text-base text-stone-900 dark:text-stone-100">Gallery Media</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+            <ChevronRight className="w-5 h-5 text-stone-400" />
           </Link>
 
           <Link
             to="/app/cms/settings"
-            className="p-3.5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+            className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
           >
-            <div className="flex items-center gap-3">
-              <Settings className="w-4 h-4 text-brand-600" />
-              <span className="font-semibold text-xs text-stone-800 dark:text-stone-200">Branding & ID Settings</span>
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              </div>
+              <span className="font-bold text-base text-stone-900 dark:text-stone-100">Branding & ID Settings</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+            <ChevronRight className="w-5 h-5 text-stone-400" />
           </Link>
         </div>
       )}

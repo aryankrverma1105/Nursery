@@ -21,42 +21,42 @@ export const AppHeader: React.FC = () => {
   };
 
   return (
-    <header className="md:hidden sticky top-0 z-40 bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 py-3 flex items-center justify-between shadow-xs">
-      <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-xl bg-brand-800 text-white flex items-center justify-center font-bold">
-          <Sprout className="w-5 h-5 text-brand-300" />
+    <header className="md:hidden sticky top-0 z-40 bg-white dark:bg-stone-900 border-b-2 border-stone-200 dark:border-stone-800 px-4 py-3.5 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-brand-800 text-white flex items-center justify-center font-black shadow-sm">
+          <Sprout className="w-6 h-6 text-brand-300" />
         </div>
         <div>
-          <div className="font-serif font-bold text-base text-stone-900 dark:text-stone-100 leading-tight">
+          <div className="font-serif font-black text-lg text-stone-900 dark:text-stone-100 leading-tight">
             NurseryOps
           </div>
-          <div className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase tracking-wider">
+          <div className="text-xs font-black text-brand-700 dark:text-brand-400 uppercase tracking-wider">
             {user?.role} • {user?.fullName.split(' ')[0]}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           onClick={toggleLanguage}
-          className="px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 text-xs font-bold uppercase tracking-wider"
+          className="px-3 py-1.5 rounded-xl border-2 border-stone-300 dark:border-stone-700 text-xs sm:text-sm font-black uppercase tracking-wider hover:bg-stone-100 dark:hover:bg-stone-800"
         >
           {i18n.language.startsWith('hi') ? 'EN' : 'हिं'}
         </button>
 
         <button
           onClick={toggleTheme}
-          className="p-1.5 rounded-lg text-stone-600 dark:text-stone-300"
+          className="p-2 rounded-xl text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400 stroke-[2.2]" /> : <Moon className="w-5 h-5 stroke-[2.2]" />}
         </button>
 
         <button
           onClick={handleLogout}
-          className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400"
+          className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
           title="Logout"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-5 h-5 stroke-[2.2]" />
         </button>
       </div>
     </header>
