@@ -47,14 +47,13 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { to: '/app', label: t('workflow.dashboard', '1. Dashboard'), icon: Home, end: true },
     { to: '/app/sowing', label: t('workflow.sowing', '2. Sowing'), icon: Sprout },
-    { to: '/app/germination', label: t('workflow.germination', '3. Germination'), icon: Activity },
-    { to: '/app/plant-growth', label: t('workflow.plantGrowth', '4. Plant Growth'), icon: Layers },
-    { to: '/app/grafting', label: t('workflow.grafting', '5. Grafting'), icon: Scissors },
-    { to: '/app/curing', label: t('workflow.curing', '6. Curing / Survival'), icon: HeartPulse },
-    { to: '/app/ready-for-sale', label: t('workflow.readyForSale', '7. Ready for Sale'), icon: CheckCircle2 },
-    { to: '/app/selling', label: t('workflow.selling', '8. Selling'), icon: ShoppingBag },
-    { to: '/app/trace', label: t('workflow.traceability', '9. Traceability'), icon: Search },
-    { to: '/app/reports', label: t('workflow.reports', '10. Reports'), icon: FileText },
+    { to: '/app/plant-growth', label: t('workflow.plantGrowth', '3. Plant Growth'), icon: Layers },
+    { to: '/app/grafting', label: t('workflow.grafting', '4. Grafting'), icon: Scissors },
+    { to: '/app/curing', label: t('workflow.curing', '5. Curing / Survival'), icon: HeartPulse },
+    { to: '/app/ready-for-sale', label: t('workflow.readyForSale', '6. Ready for Sale'), icon: CheckCircle2 },
+    { to: '/app/selling', label: t('workflow.selling', '7. Selling'), icon: ShoppingBag },
+    { to: '/app/trace', label: t('workflow.traceability', '8. Traceability'), icon: Search },
+    { to: '/app/reports', label: t('workflow.reports', '9. Reports'), icon: FileText },
   ];
 
   return (
@@ -73,10 +72,10 @@ export const Sidebar: React.FC = () => {
           </div>
         </Link>
 
-        {/* 10 Operational Navigation Sections */}
+        {/* 9 Operational Navigation Sections */}
         <nav className="space-y-1.5">
           <div className="px-3 text-xs font-black uppercase tracking-wider text-stone-400 mb-1.5">
-            Farm Workflow (10 Steps)
+            Farm Workflow
           </div>
 
           {navItems.map((item) => {

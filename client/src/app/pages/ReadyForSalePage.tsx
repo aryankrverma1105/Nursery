@@ -64,7 +64,8 @@ export const ReadyForSalePage: React.FC = () => {
     try {
       setLoading(true);
       const res = await axios.get('/api/inventory/ready-for-sale');
-      setBatches(res.data.batches || []);
+      const list = res.data.readyBatches || res.data.batches || [];
+      setBatches(list);
     } catch (err) {
       console.error('Failed to load ready for sale batches:', err);
     } finally {
@@ -217,77 +218,77 @@ export const ReadyForSalePage: React.FC = () => {
             return (
               <div
                 key={b.id}
-                className={`bg-white dark:bg-stone-900 p-5 rounded-3xl border shadow-xs flex flex-col justify-between ${
+                className={`bg-white dark:bg-stone-900 p-6 rounded-3xl border-2 shadow-sm flex flex-col justify-between hover:shadow-md transition-all ${
                   isSoldOut
                     ? 'border-stone-200 dark:border-stone-800 opacity-70'
-                    : 'border-blue-200 dark:border-blue-900/60'
+                    : 'border-blue-300 dark:border-blue-800'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <span
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
+                      className={`text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider ${
                         isSoldOut
-                          ? 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                          ? 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
+                          : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
                       }`}
                     >
                       {isSoldOut ? 'SOLD OUT' : 'READY FOR SALE'}
                     </span>
-                    <span className="text-xs font-mono text-stone-400">
+                    <span className="text-xs sm:text-sm font-bold font-mono text-stone-500 dark:text-stone-400">
                       {b.promotion_date || new Date(b.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
-                  <div className="font-mono text-base font-bold text-stone-900 dark:text-stone-100">
+                  <div className="font-mono text-lg sm:text-xl font-black text-stone-900 dark:text-stone-100">
                     {b.serial_number}
                   </div>
-                  <div className="text-sm font-bold text-stone-800 dark:text-stone-200 mt-0.5">
+                  <div className="text-base sm:text-lg font-black text-stone-800 dark:text-stone-200 mt-1">
                     {b.plant_variety}
                   </div>
 
                   {b.graft_serial && (
-                    <div className="mt-2 text-[11px] text-stone-500 font-mono">
+                    <div className="mt-2 text-xs sm:text-sm text-stone-600 dark:text-stone-400 font-mono">
                       Promoted from Graft: <strong>{b.graft_serial}</strong>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                    <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-850 border border-stone-100 dark:border-stone-800">
-                      <div className="text-stone-400 text-[10px] uppercase font-bold">Initial Ready</div>
-                      <div className="text-base font-bold text-stone-800 dark:text-stone-200 mt-0.5">
+                  <div className="grid grid-cols-2 gap-3 mt-4 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-850 border border-stone-200 dark:border-stone-800">
+                      <div className="text-stone-500 dark:text-stone-400 text-xs uppercase font-black tracking-wider">Initial Ready</div>
+                      <div className="text-lg sm:text-xl font-black text-stone-800 dark:text-stone-200 mt-1">
                         {b.initial_quantity}
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60">
-                      <div className="text-blue-800 dark:text-blue-300 text-[10px] uppercase font-bold">
+                    <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
+                      <div className="text-blue-900 dark:text-blue-300 text-xs uppercase font-black tracking-wider">
                         Available Stock
                       </div>
-                      <div className="text-base font-serif font-bold text-blue-700 dark:text-blue-300 mt-0.5">
+                      <div className="text-xl sm:text-2xl font-black font-sans text-blue-700 dark:text-blue-300 mt-1">
                         {b.current_quantity} plants
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 text-xs text-stone-500 truncate flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                    <span>{b.location || 'Retail Sales Yard'}</span>
+                  <div className="mt-3.5 text-xs sm:text-sm text-stone-600 dark:text-stone-400 truncate flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
+                    <span className="font-semibold">{b.location || 'Retail Sales Yard'}</span>
                   </div>
                 </div>
 
                 {/* Sell Action */}
-                <div className="pt-4 mt-4 border-t border-stone-100 dark:border-stone-800">
+                <div className="pt-4 mt-4 border-t border-stone-200 dark:border-stone-800">
                   {!isSoldOut ? (
                     <Link
                       to={`/app/selling?batchId=${b.id}`}
-                      className="w-full py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all"
+                      className="w-full py-3.5 px-4 rounded-2xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-md transition-all"
                     >
-                      <ShoppingBag className="w-4 h-4" />
+                      <ShoppingBag className="w-5 h-5 stroke-[2.2]" />
                       <span>Record Plant Sale</span>
                     </Link>
                   ) : (
-                    <div className="text-center py-2 text-xs font-semibold text-stone-400 bg-stone-100 dark:bg-stone-850 rounded-xl">
+                    <div className="text-center py-2.5 text-xs sm:text-sm font-bold text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-850 rounded-2xl">
                       All units sold out
                     </div>
                   )}

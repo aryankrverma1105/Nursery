@@ -1300,6 +1300,7 @@ router.get('/ready-for-sale', async (req: Request, res: Response, next: NextFunc
     );
 
     return res.json({
+      batches: resultReady,
       readyBatches: resultReady,
       promotableGrafts,
     });

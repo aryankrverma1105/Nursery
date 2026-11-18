@@ -66,12 +66,11 @@ export const DashboardPage: React.FC = () => {
 
   const pipelineStages = [
     { id: 'sowing', label: '1. Sowing', count: metrics?.stageCounts?.sown ?? 0, path: '/app/sowing', icon: Sprout, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' },
-    { id: 'germination', label: '2. Germination', count: metrics?.stageCounts?.germinated ?? 0, path: '/app/germination', icon: Activity, color: 'text-teal-500 bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-800' },
-    { id: 'growth', label: '3. Plant Growth', count: metrics?.stageCounts?.growing ?? 0, path: '/app/plant-growth', icon: Layers, color: 'text-lime-500 bg-lime-50 dark:bg-lime-950/40 border-lime-300 dark:border-lime-800' },
-    { id: 'grafting', label: '4. Grafting', count: metrics?.stageCounts?.grafted ?? 0, path: '/app/grafting', icon: Scissors, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800' },
-    { id: 'curing', label: '5. Curing', count: metrics?.stageCounts?.curing ?? 0, path: '/app/curing', icon: HeartPulse, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800' },
-    { id: 'ready', label: '6. Ready for Sale', count: metrics?.stageCounts?.readyForSale ?? 0, path: '/app/ready-for-sale', icon: CheckCircle2, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800' },
-    { id: 'selling', label: '7. Selling', count: metrics?.stageCounts?.sold ?? 0, path: '/app/selling', icon: ShoppingBag, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800' },
+    { id: 'growth', label: '2. Plant Growth', count: metrics?.stageCounts?.growing ?? 0, path: '/app/plant-growth', icon: Layers, color: 'text-lime-500 bg-lime-50 dark:bg-lime-950/40 border-lime-300 dark:border-lime-800' },
+    { id: 'grafting', label: '3. Grafting', count: metrics?.stageCounts?.grafted ?? 0, path: '/app/grafting', icon: Scissors, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800' },
+    { id: 'curing', label: '4. Curing', count: metrics?.stageCounts?.curing ?? 0, path: '/app/curing', icon: HeartPulse, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800' },
+    { id: 'ready', label: '5. Ready for Sale', count: metrics?.stageCounts?.readyForSale ?? 0, path: '/app/ready-for-sale', icon: CheckCircle2, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800' },
+    { id: 'selling', label: '6. Selling', count: metrics?.stageCounts?.sold ?? 0, path: '/app/selling', icon: ShoppingBag, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800' },
   ];
 
   return (
@@ -87,7 +86,7 @@ export const DashboardPage: React.FC = () => {
             Nursery Workflow Hub
           </h1>
           <p className="text-stone-200 text-sm sm:text-base lg:text-lg font-medium mt-2 max-w-2xl">
-            Complete lifecycle management: Sowing to Germination, Grafting, Curing & Plant Sales.
+            Complete lifecycle management: Sowing to Plant Growth, Grafting, Curing &amp; Plant Sales.
           </p>
         </div>
 
@@ -117,7 +116,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 7-STAGE WORKFLOW PIPELINE */}
+      {/* 6-STAGE WORKFLOW PIPELINE */}
       <div className="bg-white dark:bg-stone-900 p-6 sm:p-7 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -130,11 +129,11 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
           <span className="self-start sm:self-auto text-xs sm:text-sm font-black text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-950/80 px-4 py-1.5 rounded-full border border-brand-200 dark:border-brand-800">
-            7 Sequential Phases
+            6 Sequential Phases
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 pt-2">
           {pipelineStages.map((st, idx) => {
             const Icon = st.icon;
             return (
@@ -166,7 +165,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 9 CRITICAL SUMMARY METRICS CARDS */}
+      {/* 8 CRITICAL SUMMARY METRICS CARDS */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-base sm:text-lg font-black text-stone-900 dark:text-stone-100 uppercase tracking-wide">
@@ -196,29 +195,12 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 2. Germinated Seedlings */}
-          <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-            <div>
-              <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                2. Germinated Seedlings
-              </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
-                {loading ? '...' : (metrics?.totalGerminated ?? 0).toLocaleString()}
-              </div>
-              <div className="text-xs sm:text-sm font-semibold text-stone-600 dark:text-stone-400 mt-2">
-                Verified viable sprouts
-              </div>
-            </div>
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-100/70 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 flex items-center justify-center flex-shrink-0">
-              <Activity className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2.2]" />
-            </div>
-          </div>
 
-          {/* 3. Rootstock Available */}
+          {/* 2. Rootstock Available */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                3. Rootstock Available
+                2. Rootstock Available
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
                 {loading ? '...' : (metrics?.rootstockAvailable ?? 0).toLocaleString()}
@@ -232,11 +214,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 4. Scions Available */}
+          {/* 3. Scions Available */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                4. Scions Available
+                3. Scions Available
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
                 {loading ? '...' : (metrics?.scionAvailable ?? 0).toLocaleString()}
@@ -250,11 +232,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 5. Total Grafts Attempted */}
+          {/* 4. Total Grafts Attempted */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                5. Grafts Attempted
+                4. Grafts Attempted
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
                 {loading ? '...' : (metrics?.totalGraftsAttempted ?? 0).toLocaleString()}
@@ -268,11 +250,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 6. Plants in Curing */}
+          {/* 5. Plants in Curing */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                6. Plants in Curing
+                5. Plants in Curing
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
                 {loading ? '...' : (metrics?.plantsInCuring ?? 0).toLocaleString()}
@@ -286,11 +268,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 7. Curing Survival Rate */}
+          {/* 6. Curing Survival Rate */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                7. Curing Survival Rate
+                6. Curing Survival Rate
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-stone-900 dark:text-stone-100 mt-2">
                 {loading ? '...' : `${metrics?.curingSurvivalRate ?? 0}%`}
@@ -304,11 +286,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 8. Ready for Sale Plants */}
+          {/* 7. Ready for Sale Plants */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                8. Ready for Sale Plants
+                7. Ready for Sale Plants
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-emerald-600 dark:text-emerald-400 mt-2">
                 {loading ? '...' : (metrics?.readyForSalePlants ?? 0).toLocaleString()}
@@ -322,11 +304,11 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 9. Total Plants Sold */}
+          {/* 8. Total Plants Sold */}
           <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
               <div className="text-xs sm:text-sm font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
-                9. Total Plants Sold
+                8. Total Plants Sold
               </div>
               <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-sans tracking-tight text-purple-600 dark:text-purple-400 mt-2">
                 {loading ? '...' : (metrics?.totalPlantsSold ?? 0).toLocaleString()}

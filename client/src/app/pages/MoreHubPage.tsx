@@ -46,14 +46,13 @@ export const MoreHubPage: React.FC = () => {
 
   const workflowItems = [
     { to: '/app/sowing', title: '1. Sowing Registration', desc: 'Rootstock & Scion batch origin', icon: Sprout, color: 'text-emerald-500' },
-    { to: '/app/germination', title: '2. Germination Tracking', desc: 'Dated sprout rate observations', icon: Activity, color: 'text-teal-500' },
-    { to: '/app/plant-growth', title: '3. Plant Growth', desc: 'Growth readiness & dated loss logs', icon: Layers, color: 'text-lime-500' },
-    { to: '/app/grafting', title: '4. Grafting Operations', desc: 'Dual-parent union & deduction', icon: Scissors, color: 'text-amber-500' },
-    { to: '/app/curing', title: '5. Curing & Survival', desc: 'Healing & survival rate checkups', icon: HeartPulse, color: 'text-indigo-500' },
-    { to: '/app/ready-for-sale', title: '6. Ready for Sale', desc: 'Saleable approved stock balance', icon: CheckCircle2, color: 'text-blue-500' },
-    { to: '/app/selling', title: '7. Plant Sales & Billing', desc: 'Issue tax invoices with stock deduction', icon: ShoppingBag, color: 'text-purple-500' },
-    { to: '/app/trace', title: '8. Traceability Search', desc: 'Pedigree backtracking to sowing seed', icon: Search, color: 'text-blue-600' },
-    { to: '/app/reports', title: '9. Yield & Sales Reports', desc: 'Aggregated farm analytics & exports', icon: FileText, color: 'text-stone-600' },
+    { to: '/app/plant-growth', title: '2. Plant Growth', desc: 'Growth readiness & dated loss logs', icon: Layers, color: 'text-lime-500' },
+    { to: '/app/grafting', title: '3. Grafting Operations', desc: 'Dual-parent union & deduction', icon: Scissors, color: 'text-amber-500' },
+    { to: '/app/curing', title: '4. Curing & Survival', desc: 'Healing & survival rate checkups', icon: HeartPulse, color: 'text-indigo-500' },
+    { to: '/app/ready-for-sale', title: '5. Ready for Sale', desc: 'Saleable approved stock balance', icon: CheckCircle2, color: 'text-blue-500' },
+    { to: '/app/selling', title: '6. Plant Sales & Billing', desc: 'Issue tax invoices with stock deduction', icon: ShoppingBag, color: 'text-purple-500' },
+    { to: '/app/trace', title: '7. Traceability Search', desc: 'Pedigree backtracking to sowing seed', icon: Search, color: 'text-blue-600' },
+    { to: '/app/reports', title: '8. Yield & Sales Reports', desc: 'Aggregated farm analytics & exports', icon: FileText, color: 'text-stone-600' },
   ];
 
   return (
