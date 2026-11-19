@@ -25,7 +25,8 @@ import {
   FileSpreadsheet,
   Image as ImageIcon,
   ListTodo,
-  UserCog
+  UserCog,
+  ScrollText
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -193,6 +194,38 @@ export const Sidebar: React.FC = () => {
               >
                 <UserCog className="w-5 h-5 text-brand-400" />
                 <span>Staff & Access Control</span>
+              </NavLink>
+
+              <NavLink
+                to="/app/cms/audit"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    isActive ? 'bg-brand-800 text-white' : 'hover:bg-stone-800 text-stone-300'
+                  }`
+                }
+              >
+                <ScrollText className="w-5 h-5 text-brand-400" />
+                <span>Historical Audit Logs</span>
+              </NavLink>
+            </div>
+          )}
+
+          {/* Supervisor Audit Logs link */}
+          {!isAdmin && isSupervisor && (
+            <div className="pt-3 mt-3 border-t border-stone-800 space-y-1.5">
+              <div className="px-3 text-xs font-black uppercase tracking-wider text-stone-400 mb-1.5">
+                Audit Trail
+              </div>
+              <NavLink
+                to="/app/cms/audit"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    isActive ? 'bg-brand-800 text-white' : 'hover:bg-stone-800 text-stone-300'
+                  }`
+                }
+              >
+                <ScrollText className="w-5 h-5 text-brand-400" />
+                <span>Historical Audit Logs</span>
               </NavLink>
             </div>
           )}

@@ -361,13 +361,18 @@ export const App: React.FC = () => {
         <Route
           path="/app/cms/audit"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
               <PrivateLayout>
                 <AuditLogsPage />
               </PrivateLayout>
             </ProtectedRoute>
           }
         />
+        {/* Audit logs aliases */}
+        <Route path="/app/logs" element={<Navigate to="/app/cms/audit" replace />} />
+        <Route path="/app/audit" element={<Navigate to="/app/cms/audit" replace />} />
+        <Route path="/app/audit-logs" element={<Navigate to="/app/cms/audit" replace />} />
+        <Route path="/app/cms/audit-logs" element={<Navigate to="/app/cms/audit" replace />} />
 
         {/* 404 FALLBACK */}
         <Route

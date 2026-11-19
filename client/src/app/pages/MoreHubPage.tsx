@@ -25,7 +25,8 @@ import {
   Users,
   FileSpreadsheet,
   ListTodo,
-  UserCog
+  UserCog,
+  ScrollText
 } from 'lucide-react';
 
 export const MoreHubPage: React.FC = () => {
@@ -205,6 +206,22 @@ export const MoreHubPage: React.FC = () => {
               <div>
                 <span className="font-bold text-base text-stone-900 dark:text-stone-100">Staff & Access Control</span>
                 <p className="text-xs text-stone-500">Manage Admin, Supervisor & Worker accounts</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-stone-400" />
+          </Link>
+
+          <Link
+            to="/app/cms/audit"
+            className="p-4 sm:p-5 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-850"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950 flex items-center justify-center">
+                <ScrollText className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              </div>
+              <div>
+                <span className="font-bold text-base text-stone-900 dark:text-stone-100">Historical Audit Logs</span>
+                <p className="text-xs text-stone-500">Search and audit farm actions, logins, inventory & CMS</p>
               </div>
             </div>
             <ChevronRight className="w-5 h-5 text-stone-400" />

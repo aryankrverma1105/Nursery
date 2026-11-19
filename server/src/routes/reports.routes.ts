@@ -94,25 +94,49 @@ router.get('/export', requireRole(['ADMIN', 'SUPERVISOR']), async (req: Request,
   }
 });
 
-// 3. AUDIT LOGS VIEWER (Admin only)
-router.get('/audit-logs', requireRole(['ADMIN']), async (req: Request, res: Response, next: NextFunction) => {
+// 3. AUDIT LOGS VIEWER (Admin & Supervisor)
+router.get('/audit-logs', requireRole(['ADMIN', 'SUPERVISOR']), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { limit = '100', action, entityType } = req.query;
+    const { limit = '200', action, entityType, search, format } = req.query;
 
     let query = db('audit_logs')
       .leftJoin('users', 'audit_logs.user_id', 'users.id')
       .select('audit_logs.*', 'users.full_name as author_name', 'users.email as author_email')
-      .orderBy('audit_logs.created_at', 'desc')
-      .limit(Math.min(200, parseInt(limit as string, 10) || 100));
+      .orderBy('audit_logs.created_at', 'desc');
 
-    if (action) {
-      query = query.where('audit_logs.action', action as string);
+    if (action && typeof action === 'string' && action !== 'ALL') {
+      query = query.where('audit_logs.action', action);
     }
-    if (entityType) {
-      query = query.where('audit_logs.entity_type', entityType as string);
+    if (entityType && typeof entityType === 'string' && entityType !== 'ALL') {
+      query = query.where('audit_logs.entity_type', entityType);
+    }
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const s = `%${search.trim().toLowerCase()}%`;
+      query = query.where(function () {
+        this.whereRaw('LOWER(audit_logs.action) LIKE ?', [s])
+          .orWhereRaw('LOWER(audit_logs.entity_type) LIKE ?', [s])
+          .orWhereRaw('LOWER(COALESCE(audit_logs.entity_id, \'\')) LIKE ?', [s])
+          .orWhereRaw('LOWER(COALESCE(users.full_name, \'\')) LIKE ?', [s])
+          .orWhereRaw('LOWER(COALESCE(users.email, \'\')) LIKE ?', [s])
+          .orWhereRaw('LOWER(COALESCE(audit_logs.new_values, \'\')) LIKE ?', [s]);
+      });
     }
 
-    const logs = await query;
+    if (format === 'csv') {
+      const logs = await query.limit(2000);
+      let csv = 'Log ID,Timestamp,Action,Entity Type,Entity ID,Author,Author Email,IP Address,Details\n';
+      logs.forEach((log: any) => {
+        const details = (log.new_values || '').replace(/"/g, '""');
+        csv += `"${log.id}","${log.created_at}","${log.action}","${log.entity_type}","${log.entity_id || ''}","${log.author_name || 'System'}","${log.author_email || ''}","${log.ip_address || ''}","${details}"\n`;
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="historical_audit_logs.csv"');
+      return res.send(csv);
+    }
+
+    const maxLimit = Math.min(1000, parseInt(limit as string, 10) || 200);
+    const logs = await query.limit(maxLimit);
     return res.json({ logs });
   } catch (err) {
     next(err);
