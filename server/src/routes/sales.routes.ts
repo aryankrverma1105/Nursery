@@ -221,8 +221,8 @@ router.get('/orders', async (req: Request, res: Response, next: NextFunction) =>
       .leftJoin('customers', 'orders.customer_id', 'customers.id')
       .select(
         'orders.*',
-        db.raw('COALESCE(orders.customer_name, customers.name, "Walk-in Buyer") as display_customer_name'),
-        db.raw('COALESCE(orders.customer_phone, customers.phone, "") as display_customer_phone')
+        db.raw("COALESCE(orders.customer_name, customers.name, 'Walk-in Buyer') as display_customer_name"),
+        db.raw("COALESCE(orders.customer_phone, customers.phone, '') as display_customer_phone")
       )
       .orderBy('orders.created_at', 'desc');
 

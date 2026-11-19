@@ -176,10 +176,11 @@ router.delete('/batches/:id', async (req: Request, res: Response, next: NextFunc
 router.get('/sowing', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const batches = await db('batches')
-      .whereIn('batch_type', ['ROOTSTOCK', 'SCION', 'BOTH', 'SEEDLING', 'SOWN'])
-      .whereNot('status', 'DISCARDED')
+      .whereIn('batches.batch_type', ['ROOTSTOCK', 'SCION', 'BOTH', 'SEEDLING', 'SOWN'])
+      .whereNot('batches.status', 'DISCARDED')
       .leftJoin('sowing_records', 'batches.id', 'sowing_records.batch_id')
-      .leftJoin('suppliers', 'sowing_records.supplier_id', 'suppliers.id')
+      .leftJoin('seed_lots', 'sowing_records.seed_lot_id', 'seed_lots.id')
+      .leftJoin('suppliers', 'seed_lots.supplier_id', 'suppliers.id')
       .select(
         'batches.*',
         'sowing_records.seeds_sown',
@@ -188,7 +189,7 @@ router.get('/sowing', async (req: Request, res: Response, next: NextFunction) =>
         'sowing_records.seed_name as sowing_seed_name',
         'sowing_records.designation as sowing_designation',
         'sowing_records.plant_type as sowing_plant_type',
-        'suppliers.name as supplier_name'
+        db.raw("COALESCE(sowing_records.seed_source, suppliers.name, 'Internal Stock') as supplier_name")
       )
       .orderBy('batches.created_at', 'desc');
 

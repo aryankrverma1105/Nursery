@@ -36,6 +36,28 @@ body {
   --brand-accent: #69ab7e;
 }
 
+/* High-contrast dark mode text readability enhancements */
+.dark .text-stone-500 {
+  color: #a8a29e !important;
+}
+.dark .text-stone-600 {
+  color: #d6d3d1 !important;
+}
+.dark .text-stone-700 {
+  color: #e7e5e4 !important;
+}
+.dark .text-stone-800 {
+  color: #f5f5f4 !important;
+}
+.dark .text-stone-900 {
+  color: #fafaf9 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #78716c !important;
+}
+
 /* Accessibility Skip Link */
 .skip-link {
   position: absolute;
