@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   ListTodo,
@@ -99,8 +99,8 @@ export const TasksPage: React.FC = () => {
     try {
       setLoading(true);
       const [tasksRes, metricsRes] = await Promise.all([
-        axios.get('/api/tasks'),
-        axios.get('/api/tasks/metrics'),
+        api.get('/tasks'),
+        api.get('/tasks/metrics'),
       ]);
       setTasks(tasksRes.data.tasks || []);
       setMetrics(metricsRes.data.metrics || null);
@@ -113,7 +113,7 @@ export const TasksPage: React.FC = () => {
 
   const fetchStaffList = async () => {
     try {
-      const res = await axios.get('/api/users?status=active');
+      const res = await api.get('/users?status=active');
       setStaffList(res.data.users || []);
     } catch (err) {
       console.error('Failed to load staff list:', err);
@@ -138,7 +138,7 @@ export const TasksPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      const res = await axios.post('/api/tasks', {
+      const res = await api.post('/tasks', {
         title: taskTitle.trim(),
         description: taskDesc.trim() || undefined,
         assigned_to_user_id: Number(assignedToId),
@@ -160,7 +160,7 @@ export const TasksPage: React.FC = () => {
 
   const handleQuickStatus = async (taskId: number, newStatus: string, notes?: string) => {
     try {
-      const res = await axios.patch(`/api/tasks/${taskId}/status`, {
+      const res = await api.patch(`/tasks/${taskId}/status`, {
         status: newStatus,
         completion_notes: notes || undefined,
       });
@@ -179,7 +179,7 @@ export const TasksPage: React.FC = () => {
   const handleDeleteTask = async (taskId: number) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      await axios.delete(`/api/tasks/${taskId}`);
+      await api.delete(`/tasks/${taskId}`);
       fetchTasks();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete task.');

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -63,7 +63,7 @@ export const ReadyForSalePage: React.FC = () => {
   const fetchReadyBatches = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/inventory/ready-for-sale');
+      const res = await api.get('/inventory/ready-for-sale');
       const list = res.data.readyBatches || res.data.batches || [];
       setBatches(list);
     } catch (err) {
@@ -75,7 +75,7 @@ export const ReadyForSalePage: React.FC = () => {
 
   const fetchCuringEligible = async () => {
     try {
-      const res = await axios.get('/api/inventory/curing');
+      const res = await api.get('/inventory/curing');
       const eligible = (res.data.batches || [])
         .filter((b: any) => b.surviving_plants > 0 || b.current_quantity > 0)
         .map((b: any) => ({
@@ -131,7 +131,7 @@ export const ReadyForSalePage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      const res = await axios.post('/api/inventory/ready-for-sale/promote', {
+      const res = await api.post('/inventory/ready-for-sale/promote', {
         grafted_batch_id: Number(selectedGraftId),
         quantity: Number(promoteQty),
         promotion_date: promoDate,

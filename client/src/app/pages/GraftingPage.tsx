@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   Scissors,
@@ -73,7 +73,7 @@ export const GraftingPage: React.FC = () => {
   const fetchEligible = async () => {
     try {
       setLoadingEligible(true);
-      const res = await axios.get('/api/inventory/grafting/eligible-batches');
+      const res = await api.get('/inventory/grafting/eligible-batches');
       const rs = res.data.rootstocks || [];
       const sc = res.data.scions || [];
       setRootstocks(rs);
@@ -95,7 +95,7 @@ export const GraftingPage: React.FC = () => {
   const fetchGraftRuns = async () => {
     try {
       setLoadingGrafts(true);
-      const res = await axios.get('/api/inventory/grafting');
+      const res = await api.get('/inventory/grafting');
       setGraftRuns(res.data.grafts || []);
     } catch (err) {
       console.error('Failed to load graft runs:', err);
@@ -149,7 +149,7 @@ export const GraftingPage: React.FC = () => {
 
     try {
       setSaving(true);
-      const res = await axios.post('/api/inventory/grafting', {
+      const res = await api.post('/inventory/grafting', {
         rootstock_batch_id: Number(selectedRootstockId),
         scion_batch_id: Number(selectedScionId),
         quantity_grafted: Number(quantityGrafted),

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   HeartPulse,
@@ -60,7 +60,7 @@ export const CuringSurvivalPage: React.FC = () => {
   const fetchBatches = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/inventory/curing');
+      const res = await api.get('/inventory/curing');
       setBatches(res.data.batches || []);
     } catch (err) {
       console.error('Failed to load curing batches:', err);
@@ -100,7 +100,7 @@ export const CuringSurvivalPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      await axios.post(`/api/inventory/curing/${selectedBatch.id}/observation`, {
+      await api.post(`/inventory/curing/${selectedBatch.id}/observation`, {
         observation_date: obsDate,
         healed_count: Number(healedCount),
         failed_count: Number(failedCount),
@@ -127,7 +127,7 @@ export const CuringSurvivalPage: React.FC = () => {
     setHistoryBatch(b);
     setLoadingHistory(true);
     try {
-      const res = await axios.get(`/api/inventory/curing/${b.id}/history`);
+      const res = await api.get(`/inventory/curing/${b.id}/history`);
       setHistoryLogs(res.data.history || []);
     } catch (err) {
       console.error('Failed to load history:', err);

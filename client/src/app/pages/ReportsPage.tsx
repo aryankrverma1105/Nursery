@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   FileText,
@@ -26,8 +26,8 @@ export const ReportsPage: React.FC = () => {
     try {
       setLoading(true);
       const [metricsRes, ordersRes] = await Promise.all([
-        axios.get('/api/inventory/dashboard-metrics'),
-        axios.get('/api/sales/orders'),
+        api.get('/inventory/dashboard-metrics'),
+        api.get('/sales/orders'),
       ]);
       setMetrics(metricsRes.data.metrics);
       setOrders(ordersRes.data.orders || []);

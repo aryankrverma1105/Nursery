@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -76,7 +76,7 @@ export const SellingPage: React.FC = () => {
 
   const fetchReadyBatches = async () => {
     try {
-      const res = await axios.get('/api/inventory/ready-for-sale');
+      const res = await api.get('/inventory/ready-for-sale');
       const available = (res.data.batches || []).filter(
         (b: any) => b.current_quantity > 0 && b.status !== 'QUARANTINED'
       );
@@ -100,7 +100,7 @@ export const SellingPage: React.FC = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/sales/orders');
+      const res = await api.get('/sales/orders');
       setOrders(res.data.orders || []);
     } catch (err) {
       console.error('Failed to load orders:', err);
@@ -147,7 +147,7 @@ export const SellingPage: React.FC = () => {
 
     try {
       setSaving(true);
-      const res = await axios.post('/api/sales/orders', {
+      const res = await api.post('/sales/orders', {
         batch_id: Number(selectedBatchId),
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),

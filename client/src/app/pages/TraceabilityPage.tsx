@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -47,7 +47,7 @@ export const TraceabilityPage: React.FC = () => {
       setLoading(true);
       setError(null);
       setActionFeedback(null);
-      const res = await axios.get(`/api/trace/${encodeURIComponent(searchCode.trim())}`);
+      const res = await api.get(`/trace/${encodeURIComponent(searchCode.trim())}`);
       setTraceData(res.data);
     } catch (err: any) {
       console.error('Trace error:', err);
@@ -74,7 +74,7 @@ export const TraceabilityPage: React.FC = () => {
 
     try {
       setActionLoading(true);
-      const res = await axios.post('/api/trace/quarantine', {
+      const res = await api.post('/trace/quarantine', {
         batch_id: batchId,
         reason: quarantineReason,
       });
@@ -94,7 +94,7 @@ export const TraceabilityPage: React.FC = () => {
 
     try {
       setActionLoading(true);
-      const res = await axios.post('/api/trace/release', {
+      const res = await api.post('/trace/release', {
         batch_id: batchId,
         reason,
       });

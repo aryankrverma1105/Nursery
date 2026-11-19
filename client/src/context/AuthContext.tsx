@@ -23,15 +23,30 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('nursery_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('nursery_user'));
 
   const fetchCurrentUser = async () => {
+    const token = localStorage.getItem('nursery_token');
+    if (!token && !user) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
     try {
       const res = await api.get('/auth/me');
       setUser(res.data.user);
+      localStorage.setItem('nursery_user', JSON.stringify(res.data.user));
     } catch {
       localStorage.removeItem('nursery_token');
+      localStorage.removeItem('nursery_user');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -47,6 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.data.accessToken) {
       localStorage.setItem('nursery_token', res.data.accessToken);
     }
+    if (res.data.user) {
+      localStorage.setItem('nursery_user', JSON.stringify(res.data.user));
+    }
     setUser(res.data.user);
     return res.data.user;
   };
@@ -56,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await api.post('/auth/logout');
     } catch {}
     localStorage.removeItem('nursery_token');
+    localStorage.removeItem('nursery_user');
     setUser(null);
   };
 

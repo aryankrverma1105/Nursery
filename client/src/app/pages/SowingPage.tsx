@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   Sprout,
@@ -78,7 +78,7 @@ export const SowingPage: React.FC = () => {
   const fetchBatches = async () => {
     try {
       setLoadingBatches(true);
-      const res = await axios.get('/api/inventory/sowing');
+      const res = await api.get('/inventory/sowing');
       setBatches(res.data.batches || []);
     } catch (err) {
       console.error('Failed to load sowing batches:', err);
@@ -131,7 +131,7 @@ export const SowingPage: React.FC = () => {
         notes: notes.trim(),
       };
 
-      const res = await axios.post('/api/inventory/sowing', payload);
+      const res = await api.post('/inventory/sowing', payload);
       const created = res.data.batch || (res.data.batches && res.data.batches[0]);
 
       setFeedback({

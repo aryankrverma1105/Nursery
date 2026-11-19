@@ -1,5 +1,23 @@
 import axios from 'axios';
 
+// Configure global default axios instance to ensure withCredentials and auth header are attached everywhere
+axios.defaults.baseURL = '/api';
+axios.defaults.withCredentials = true;
+
+const attachAuthHeader = (config: any) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('nursery_token') : null;
+  if (token) {
+    config.headers = config.headers || {};
+    if (!config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  config.withCredentials = true;
+  return config;
+};
+
+axios.interceptors.request.use(attachAuthHeader);
+
 export const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
@@ -8,13 +26,7 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('nursery_token') : null;
-  if (token && !config.headers.Authorization) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+api.interceptors.request.use(attachAuthHeader);
 
 api.interceptors.response.use(
   (response) => response,
@@ -33,6 +45,7 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('nursery_token');
+          localStorage.removeItem('nursery_user');
         }
         return Promise.reject(error);
       }

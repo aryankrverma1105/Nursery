@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
@@ -58,7 +58,7 @@ export const GerminationPage: React.FC = () => {
   const fetchBatches = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/inventory/germination');
+      const res = await api.get('/inventory/germination');
       setBatches(res.data.batches || []);
     } catch (err) {
       console.error('Failed to load germination batches:', err);
@@ -99,7 +99,7 @@ export const GerminationPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      await axios.post(`/api/inventory/germination/${selectedBatch.id}`, {
+      await api.post(`/inventory/germination/${selectedBatch.id}`, {
         observation_date: obsDate,
         total_seeds_sown: selectedBatch.total_seeds,
         germinated_count: Number(germinatedCount),
@@ -130,7 +130,7 @@ export const GerminationPage: React.FC = () => {
     setHistoryBatch(batch);
     setLoadingHistory(true);
     try {
-      const res = await axios.get(`/api/inventory/germination/${batch.id}/history`);
+      const res = await api.get(`/inventory/germination/${batch.id}/history`);
       setHistoryLogs(res.data.history || []);
     } catch (err) {
       console.error('Failed to load history:', err);

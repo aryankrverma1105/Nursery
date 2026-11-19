@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -72,7 +72,7 @@ export const UsersManagementPage: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/users');
+      const res = await api.get('/users');
       setUsers(res.data.users || []);
     } catch (err: any) {
       console.error('Failed to load users:', err);
@@ -91,7 +91,7 @@ export const UsersManagementPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      const res = await axios.post('/api/users', {
+      const res = await api.post('/users', {
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
@@ -120,7 +120,7 @@ export const UsersManagementPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      const res = await axios.put(`/api/users/${selectedUser.id}`, {
+      const res = await api.put(`/users/${selectedUser.id}`, {
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         role,
@@ -147,7 +147,7 @@ export const UsersManagementPage: React.FC = () => {
       setSubmitting(true);
       setFeedback(null);
 
-      const res = await axios.put(`/api/users/${selectedUser.id}/password`, {
+      const res = await api.put(`/users/${selectedUser.id}/password`, {
         new_password: newPassword,
       });
 
@@ -171,7 +171,7 @@ export const UsersManagementPage: React.FC = () => {
     if (!window.confirm(`Are you sure you want to ${actionText} ${u.full_name}'s account?`)) return;
 
     try {
-      await axios.put(`/api/users/${u.id}`, {
+      await api.put(`/users/${u.id}`, {
         is_active: !u.is_active,
       });
       fetchUsers();

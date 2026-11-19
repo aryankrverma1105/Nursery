@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import {
   Layers,
@@ -76,7 +76,7 @@ export const PlantGrowthPage: React.FC = () => {
   const fetchBatches = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/inventory/growth');
+      const res = await api.get('/inventory/growth');
       setBatches(res.data.batches || []);
     } catch (err) {
       console.error('Failed to load growth batches:', err);
@@ -96,7 +96,7 @@ export const PlantGrowthPage: React.FC = () => {
     try {
       setSubmittingStatus(true);
       setFeedback(null);
-      await axios.post(`/api/inventory/growth/${statusBatch.id}/status`, {
+      await api.post(`/inventory/growth/${statusBatch.id}/status`, {
         new_status: newStatus,
         log_date: statusDate,
         notes: statusNotes,
@@ -128,7 +128,7 @@ export const PlantGrowthPage: React.FC = () => {
     try {
       setSubmittingLoss(true);
       setFeedback(null);
-      await axios.post(`/api/inventory/growth/${lossBatch.id}/loss`, {
+      await api.post(`/inventory/growth/${lossBatch.id}/loss`, {
         loss_quantity: Number(lossQty),
         reason: lossReason,
         log_date: lossDate,
@@ -150,7 +150,7 @@ export const PlantGrowthPage: React.FC = () => {
     setHistoryBatch(batch);
     setLoadingHistory(true);
     try {
-      const res = await axios.get(`/api/inventory/growth/${batch.id}/history`);
+      const res = await api.get(`/inventory/growth/${batch.id}/history`);
       setHistoryLogs(res.data.history || []);
     } catch (err) {
       console.error('Failed to load growth history:', err);

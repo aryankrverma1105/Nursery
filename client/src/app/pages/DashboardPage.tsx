@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -66,8 +66,8 @@ export const DashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
       const [invRes, taskRes] = await Promise.all([
-        axios.get('/api/inventory/dashboard-metrics'),
-        axios.get('/api/tasks/metrics').catch(() => ({ data: { metrics: null } }))
+        api.get('/inventory/dashboard-metrics'),
+        api.get('/tasks/metrics').catch(() => ({ data: { metrics: null } }))
       ]);
       setMetrics(invRes.data.metrics);
       if (taskRes?.data?.metrics) {
