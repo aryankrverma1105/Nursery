@@ -141,3 +141,34 @@ server {
      --set-env-vars NODE_ENV=production,PORT=8080
    ```
 
+---
+
+## 5. Google Cloud Compute Engine VM Setup (Direct Port 80 - No Port Numbers)
+
+### Step 1: Create VM in Google Cloud Console
+1. Navigate to **Compute Engine** > **VM instances** > **Create Instance**.
+2. Select **Ubuntu 22.04 LTS** or **Ubuntu 24.04 LTS** (Machine: `e2-medium` or `e2-small`).
+3. Under **Firewall**, check both:
+   - ✅ **Allow HTTP traffic**
+   - ✅ **Allow HTTPS traffic**
+4. Click **Create**.
+5. Once created, click the **SSH** button next to your VM instance in the Google Cloud Console.
+
+### Step 2: One-Command Automated Setup
+Inside your VM SSH terminal, run:
+
+```bash
+git clone https://github.com/aryankrverma1105/Nursery.git /var/www/nurcery
+cd /var/www/nurcery
+chmod +x scripts/setup-gcp-vm.sh
+bash scripts/setup-gcp-vm.sh
+```
+
+### Step 3: Access Your Website
+Open your browser and visit:
+```
+http://<YOUR_VM_EXTERNAL_IP>
+```
+No port number is required! Nginx automatically handles port 80 and proxies backend API and static uploads seamlessly.
+
+

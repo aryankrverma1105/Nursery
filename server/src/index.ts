@@ -90,24 +90,6 @@ app.use('/api/tasks', tasksRoutes);
 // 6. Centralized Error Handler
 app.use(errorHandler);
 
-// 7. Serve Static Frontend SPA in Production (if built client exists)
-const clientDistCandidates = [
-  path.resolve(process.cwd(), '../client/dist'),
-  path.resolve(process.cwd(), 'client-dist'),
-  path.resolve(process.cwd(), 'client/dist'),
-  path.resolve(process.cwd(), 'dist/public')
-];
-const clientDistPath = clientDistCandidates.find(p => fs.existsSync(p));
-if (clientDistPath) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
-      return next();
-    }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
-}
-
 import { fileURLToPath } from 'url';
 
 // Auto-run migrations and seed when started directly
