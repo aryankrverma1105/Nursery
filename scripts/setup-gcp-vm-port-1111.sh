@@ -29,6 +29,10 @@ sudo npm install -g pm2
 echo "--> [4/6] Installing npm dependencies..."
 npm install
 
+# Ensure Rollup Linux native binary is installed (resolves cross-OS npm lockfile bug)
+echo "--> Ensuring Linux architecture Rollup native modules are present..."
+npm install --save-optional @rollup/rollup-linux-x64-gnu --workspace=client || npm install -D @rollup/rollup-linux-x64-gnu || true
+
 # 5. Build Frontend SPA & Backend Server
 echo "--> [5/6] Building production frontend and backend..."
 npm run build
