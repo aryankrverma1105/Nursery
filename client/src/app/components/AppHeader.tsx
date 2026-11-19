@@ -23,12 +23,14 @@ export const AppHeader: React.FC = () => {
   return (
     <header className="md:hidden sticky top-0 z-40 bg-white dark:bg-stone-900 border-b-2 border-stone-200 dark:border-stone-800 px-4 py-3.5 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand-800 text-white flex items-center justify-center font-black shadow-sm">
-          <Sprout className="w-6 h-6 text-brand-300" />
-        </div>
+        <img
+          src="/logo/deep-root-farms-mark.svg"
+          alt="Deep Root Farms"
+          className="w-10 h-10 rounded-xl object-contain shadow-sm"
+        />
         <div>
           <div className="font-serif font-black text-lg text-stone-900 dark:text-stone-100 leading-tight">
-            NurseryOps
+            Deep Root Farms
           </div>
           <div className="text-xs font-black text-brand-700 dark:text-brand-400 uppercase tracking-wider">
             {user?.role} • {user?.fullName.split(' ')[0]}

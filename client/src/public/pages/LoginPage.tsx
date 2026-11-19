@@ -78,13 +78,20 @@ export const LoginPage: React.FC = () => {
 
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-stone-900 p-8 sm:p-10 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-xl">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-brand-800 text-brand-100 flex items-center justify-center shadow-md">
-            <Sprout className="w-7 h-7 text-brand-300" />
+        <div className="text-center space-y-3">
+          <img
+            src="/logo/deep-root-farms-mark.svg"
+            alt="Deep Root Farms"
+            className="mx-auto w-16 h-16 rounded-2xl object-contain shadow-lg"
+          />
+          <div>
+            <h2 className="font-serif text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+              Deep Root Farms
+            </h2>
+            <div className="text-xs font-black uppercase tracking-wider text-brand-600 dark:text-brand-400 mt-1">
+              Staff Portal &amp; Operations Login
+            </div>
           </div>
-          <h2 className="font-serif text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-            Nursery Staff Portal
-          </h2>
           <p className="text-xs text-stone-500 max-w-xs mx-auto">
             Authorized access for inventory managers, supervisors, and field technicians.
           </p>

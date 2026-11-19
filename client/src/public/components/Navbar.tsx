@@ -31,9 +31,11 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg p-1">
-            <div className="w-11 h-11 rounded-xl bg-brand-800 text-brand-100 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <Sprout className="w-6 h-6 text-brand-300" />
-            </div>
+            <img
+              src="/logo/deep-root-farms-mark.svg"
+              alt="Deep Root Farms"
+              className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform"
+            />
             <div>
               <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-brand-950 dark:text-stone-100 block">
                 Deep Root Farms

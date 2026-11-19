@@ -63,10 +63,12 @@ export const Sidebar: React.FC = () => {
     <aside className="hidden md:flex flex-col w-72 bg-stone-900 text-stone-200 border-r border-stone-800 h-screen sticky top-0 p-4 justify-between overflow-y-auto">
       <div className="space-y-4">
         {/* App Portal Brand */}
-        <Link to="/app" className="flex items-center gap-3 px-2 py-2">
-          <div className="w-11 h-11 rounded-2xl bg-brand-700 text-white flex items-center justify-center font-black shadow-md">
-            <Sprout className="w-7 h-7 text-brand-300" />
-          </div>
+        <Link to="/app" className="flex items-center gap-3 px-2 py-2 group">
+          <img
+            src="/logo/deep-root-farms-mark.svg"
+            alt="Deep Root Farms"
+            className="w-11 h-11 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform"
+          />
           <div>
             <div className="font-serif font-black text-lg text-white tracking-tight">Deep Root Farms</div>
             <div className="text-xs font-black text-brand-400 uppercase tracking-wider">

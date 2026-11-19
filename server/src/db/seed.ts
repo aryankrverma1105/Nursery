@@ -12,6 +12,9 @@ export async function seed(isSampleData: boolean = true) {
   // 1. Core Settings
   const defaultSettings = [
     { key: 'site_name', value: `Deep Root Farms${isDevMarker}`, description: 'Public farm name' },
+    { key: 'site_logo', value: '/logo/deep-root-farms-logo-horizontal.svg', description: 'Official Farm Brand Logo' },
+    { key: 'site_logo_mark', value: '/logo/deep-root-farms-mark.svg', description: 'Official Farm Seal / Mark' },
+    { key: 'site_logo_stacked', value: '/logo/deep-root-farms-logo-stacked.svg', description: 'Official Farm Stacked Logo' },
     { key: 'site_tagline', value: 'Specialized Fruit Trees, Rootstocks & Indigenous Plants', description: 'Hero tagline' },
     { key: 'contact_phone', value: '+91 98765 43210', description: 'Official Phone' },
     { key: 'contact_whatsapp', value: '919876543210', description: 'WhatsApp number for wa.me enquiries' },

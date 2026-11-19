@@ -23,9 +23,11 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
           {/* Col 1: Brand & Philosophy */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-700 text-brand-100 flex items-center justify-center">
-                <Sprout className="w-6 h-6 text-brand-300" />
-              </div>
+              <img
+                src="/logo/deep-root-farms-mark.svg"
+                alt="Deep Root Farms Logo"
+                className="w-11 h-11 rounded-xl object-contain shadow-sm"
+              />
               <span className="font-serif text-xl font-bold tracking-tight text-white block">
                 {siteName}
               </span>

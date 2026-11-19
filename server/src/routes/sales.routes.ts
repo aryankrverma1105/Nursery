@@ -459,12 +459,15 @@ router.get('/orders/:id/invoice', async (req: Request, res: Response, next: Next
 
         <div id="printableArea" class="invoice-card">
           <div class="header">
-            <div>
-              <div class="farm-name">${settingsMap.site_name || 'Deep Root Farms'}</div>
-              <div style="font-size: 14px; color: #57534e; margin-top: 4px;">${settingsMap.contact_address || 'Agri Zone'}</div>
-              <div style="font-size: 14px; color: #57534e;">Phone: ${settingsMap.contact_phone || '+91 98765 43210'}</div>
-              <div style="font-size: 13px; color: #15803d; font-weight: 800; margin-top: 6px; letter-spacing: 0.3px;">
-                ✓ Certified Botanical Material &amp; Pure Pedigree
+            <div style="display: flex; align-items: flex-start; gap: 16px;">
+              <img src="/logo/deep-root-farms-mark.png" alt="Deep Root Farms" style="width: 58px; height: 58px; border-radius: 12px; object-fit: contain; flex-shrink: 0;" />
+              <div>
+                <div class="farm-name">${settingsMap.site_name || 'Deep Root Farms'}</div>
+                <div style="font-size: 14px; color: #57534e; margin-top: 2px;">${settingsMap.contact_address || 'Agri Zone'}</div>
+                <div style="font-size: 14px; color: #57534e;">Phone: ${settingsMap.contact_phone || '+91 98765 43210'}</div>
+                <div style="font-size: 13px; color: #15803d; font-weight: 800; margin-top: 4px; letter-spacing: 0.3px;">
+                  ✓ Certified Botanical Material &amp; Pure Pedigree
+                </div>
               </div>
             </div>
             <div class="invoice-tag">
