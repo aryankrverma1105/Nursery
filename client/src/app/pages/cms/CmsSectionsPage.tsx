@@ -8,7 +8,7 @@ export const CmsSectionsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [editingSection, setEditingSection] = useState<any | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['cms-sections'],
     queryFn: async () => {
       const res = await api.get('/cms/sections');
@@ -62,8 +62,19 @@ export const CmsSectionsPage: React.FC = () => {
         </p>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm flex items-center justify-between">
+          <span>Failed to load homepage sections. {(error as any)?.response?.data?.error || (error as any)?.message}</span>
+          <button onClick={() => refetch()} className="px-3 py-1 bg-rose-600 text-white rounded-lg text-xs font-semibold">Retry</button>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="py-16 text-center text-stone-500">Loading sections...</div>
+      ) : sections.length === 0 && !error ? (
+        <div className="py-16 text-center bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 text-stone-500">
+          No homepage sections found.
+        </div>
       ) : (
         <div className="space-y-3">
           {sections.map((section: any, idx: number) => (

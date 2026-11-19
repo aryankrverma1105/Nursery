@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await api.get('/auth/me');
       setUser(res.data.user);
     } catch {
+      localStorage.removeItem('nursery_token');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -43,6 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (credentials: any): Promise<User> => {
     const res = await api.post('/auth/login', credentials);
+    if (res.data.accessToken) {
+      localStorage.setItem('nursery_token', res.data.accessToken);
+    }
     setUser(res.data.user);
     return res.data.user;
   };
@@ -51,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.post('/auth/logout');
     } catch {}
+    localStorage.removeItem('nursery_token');
     setUser(null);
   };
 

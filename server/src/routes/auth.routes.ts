@@ -10,6 +10,10 @@ import { AuditService } from '../services/audit/AuditService.js';
 const router = Router();
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_super_secure_min_32_characters';
 
+const isSecureCookie = (req: Request) => {
+  return process.env.COOKIE_SECURE === 'true' || Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https');
+};
+
 // 1. LOGIN
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -84,17 +88,17 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response, next:
       fullName: user.full_name,
     });
 
-    // Set secure httpOnly cookie
+    // Set secure httpOnly cookie (auto-detect HTTPS vs plain HTTP)
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureCookie(req),
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureCookie(req),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -149,14 +153,14 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureCookie(req),
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureCookie(req),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

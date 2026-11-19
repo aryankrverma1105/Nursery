@@ -8,6 +8,14 @@ export const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('nursery_token') : null;
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -15,10 +23,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/login')) {
       originalRequest._retry = true;
       try {
-        await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const token = typeof window !== 'undefined' ? localStorage.getItem('nursery_token') : null;
+        const res = await axios.post('/api/auth/refresh', { refreshToken: token }, { withCredentials: true });
+        if (res.data.accessToken) {
+          localStorage.setItem('nursery_token', res.data.accessToken);
+          originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+        }
         return api(originalRequest);
       } catch (refreshErr) {
-        // Refresh failed: session expired
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('nursery_token');
+        }
         return Promise.reject(error);
       }
     }
