@@ -83,20 +83,20 @@ export const ContactPage: React.FC = () => {
                 <Mail className="w-5 h-5 text-brand-700 dark:text-brand-400 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-semibold text-stone-900 dark:text-stone-100">Electronic Mail</div>
-                  <div className="text-stone-500 mt-0.5">{settings.contact_email || 'info@greenvalleynursery.local'}</div>
+                  <div className="text-stone-500 mt-0.5">{settings.contact_email || 'info@deeprootfarms.local'}</div>
                 </div>
               </div>
             </div>
 
             <div className="pt-4 border-t border-stone-100 dark:border-stone-800">
               <a
-                href={`https://wa.me/${settings.contact_whatsapp || '919876543210'}?text=Hello%20Green%20Valley%20Nursery,%20I%20would%20like%20to%20plan%20a%20nursery%20visit.`}
+                href={`https://wa.me/${settings.contact_whatsapp || '919876543210'}?text=${encodeURIComponent(settings.contact_whatsapp_msg || 'Hello Deep Root Farms, I would like to plan a nursery visit.')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-semibold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 shadow-md transition-transform active:scale-[0.99] text-sm"
               >
                 <MessageSquare className="w-5 h-5" />
-                <span>Message Head Propagator</span>
+                <span>{settings.contact_whatsapp_text || 'Message Head Propagator via WhatsApp'}</span>
               </a>
             </div>
           </div>

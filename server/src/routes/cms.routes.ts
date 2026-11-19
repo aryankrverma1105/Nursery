@@ -332,12 +332,22 @@ router.put('/settings', requireRole(['ADMIN']), async (req: Request, res: Respon
     const { settings } = req.body; // Record<string, string>
     if (settings && typeof settings === 'object') {
       for (const [key, value] of Object.entries(settings)) {
-        await db('settings')
-          .where({ key })
-          .update({
+        const exists = await db('settings').where({ key }).first();
+        if (exists) {
+          await db('settings')
+            .where({ key })
+            .update({
+              value: String(value),
+              updated_at: db.fn.now(),
+            });
+        } else {
+          await db('settings').insert({
+            key,
             value: String(value),
+            description: key.replace(/_/g, ' '),
             updated_at: db.fn.now(),
           });
+        }
       }
     }
 

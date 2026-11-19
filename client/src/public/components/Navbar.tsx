@@ -3,14 +3,35 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { Sprout, Sun, Moon, Menu, X, Globe, LogIn, LayoutDashboard } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../services/api';
+import { Sun, Moon, Menu, X, Globe, LayoutDashboard, LogIn } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  settings?: Record<string, string>;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ settings: propSettings }) => {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { data: fetchedSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: async () => {
+      const res = await api.get('/public/settings');
+      return res.data.settings;
+    },
+    enabled: !propSettings,
+  });
+
+  const settings = propSettings || fetchedSettings || {};
+  const rawSiteName = settings.site_name || 'Deep Root Farms';
+  const siteName = rawSiteName.replace(/\[SAMPLE DATA\]/gi, '').trim() || 'Deep Root Farms';
+  const siteSubtitle = settings.site_tagline || 'Horticultural Nursery';
+  const logoMark = settings.site_logo_mark || '/logo/deep-root-farms-mark.svg';
 
   const toggleLanguage = () => {
     const nextLng = i18n.language.startsWith('hi') ? 'en' : 'hi';
@@ -32,16 +53,16 @@ export const Navbar: React.FC = () => {
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg p-1">
             <img
-              src="/logo/deep-root-farms-mark.svg"
-              alt="Deep Root Farms"
+              src={logoMark}
+              alt={siteName}
               className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform"
             />
             <div>
               <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-brand-950 dark:text-stone-100 block">
-                Deep Root Farms
+                {siteName}
               </span>
-              <span className="text-[10px] tracking-widest uppercase font-semibold text-brand-600 dark:text-brand-400 block -mt-1">
-                Horticultural Nursery <span className="text-amber-600 dark:text-amber-400 font-bold">[SAMPLE DATA]</span>
+              <span className="text-[11px] tracking-widest uppercase font-semibold text-brand-600 dark:text-brand-400 block -mt-0.5">
+                {siteSubtitle}
               </span>
             </div>
           </Link>

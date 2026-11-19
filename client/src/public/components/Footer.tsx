@@ -1,20 +1,63 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sprout, Phone, Mail, MapPin, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Phone, Mail, MapPin, MessageSquare, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../services/api';
 
 interface FooterProps {
   settings?: Record<string, string>;
 }
 
-export const Footer: React.FC<FooterProps> = ({ settings }) => {
+export const Footer: React.FC<FooterProps> = ({ settings: propSettings }) => {
   const { t } = useTranslation();
 
-  const siteName = settings?.site_name || '[SAMPLE DATA] Deep Root Farms';
-  const phone = settings?.contact_phone || '+91 98765 43210';
-  const whatsapp = settings?.contact_whatsapp || '919876543210';
-  const email = settings?.contact_email || 'info@deeprootfarms.local';
-  const address = settings?.contact_address || 'Survey No. 108, Riverside Highway, Agri Zone [SAMPLE DATA]';
+  // If settings not passed as prop, fetch live public settings
+  const { data: fetchedSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: async () => {
+      const res = await api.get('/public/settings');
+      return res.data.settings;
+    },
+    enabled: !propSettings,
+  });
+
+  const settings = propSettings || fetchedSettings || {};
+
+  const rawSiteName = settings.site_name || 'Deep Root Farms';
+  const siteName = rawSiteName.replace(/\[SAMPLE DATA\]/gi, '').trim() || 'Deep Root Farms';
+  const logoMark = settings.site_logo_mark || '/logo/deep-root-farms-mark.svg';
+  const phone = settings.contact_phone || '+91 98765 43210';
+  const whatsapp = settings.contact_whatsapp || '919876543210';
+  const email = settings.contact_email || 'info@deeprootfarms.local';
+  const rawAddress = settings.contact_address || 'Survey No. 108, Riverside Highway, Agri Zone';
+  const address = rawAddress.replace(/\[SAMPLE DATA\]/gi, '').trim() || 'Survey No. 108, Riverside Highway, Agri Zone';
+  
+  const footerAbout = settings.footer_about || 'Specialized scientific propagation of commercial grafted fruit cultivars, virus-indexed mother trees, and vigorous rootstocks with individual batch pedigree traceability.';
+  const footerBadge = settings.footer_badge || 'Certified Horticultural Lineage';
+  const whatsappBtnText = settings.contact_whatsapp_text || 'Inquire via WhatsApp';
+  const whatsappMsg = settings.contact_whatsapp_msg || 'Hello Deep Root Farms, I am inquiring about sapling availability.';
+
+  const defaultSpecialties = [
+    'Grafted Kesar & Alphonso Mango',
+    'Taiwan Pink Guava Hybrids',
+    'Wilt-Resistant Desi Rootstocks',
+    'High-Density Meadow Planting',
+    'Contract Custom Graft Allocations',
+    'Acclimatized Fruit Saplings',
+  ];
+
+  const specialties = settings.footer_specialties
+    ? settings.footer_specialties.split('\n').map((s: string) => s.trim()).filter(Boolean)
+    : defaultSpecialties;
+
+  const currentYear = new Date().getFullYear();
+  const rawCopyright = settings.footer_copyright || `© ${currentYear} ${siteName}. All rights reserved. Public Catalogue Only — No Online Checkout.`;
+  const copyrightText = rawCopyright
+    .replace(/\{YEAR\}/gi, String(currentYear))
+    .replace(/\{SITE_NAME\}/gi, siteName);
+
+  const footerNotice = settings.footer_notice?.trim();
 
   return (
     <footer className="bg-stone-900 text-stone-300 dark:bg-black dark:text-stone-400 border-t border-stone-800 transition-colors pt-16 pb-12">
@@ -24,8 +67,8 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <img
-                src="/logo/deep-root-farms-mark.svg"
-                alt="Deep Root Farms Logo"
+                src={logoMark}
+                alt={siteName}
                 className="w-11 h-11 rounded-xl object-contain shadow-sm"
               />
               <span className="font-serif text-xl font-bold tracking-tight text-white block">
@@ -33,12 +76,14 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
               </span>
             </div>
             <p className="text-sm leading-relaxed text-stone-400">
-              Specialized scientific propagation of commercial grafted fruit cultivars, virus-indexed mother trees, and vigorous rootstocks with individual batch pedigree traceability.
+              {footerAbout}
             </p>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-400 bg-brand-950/60 border border-brand-800 px-3 py-1.5 rounded-full">
-              <ShieldCheck className="w-4 h-4 text-brand-400" />
-              <span>Certified Horticultural Lineage</span>
-            </div>
+            {footerBadge && (
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-400 bg-brand-950/60 border border-brand-800 px-3 py-1.5 rounded-full">
+                <ShieldCheck className="w-4 h-4 text-brand-400" />
+                <span>{footerBadge}</span>
+              </div>
+            )}
           </div>
 
           {/* Col 2: Quick Links */}
@@ -86,12 +131,12 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
               Specialties
             </h4>
             <ul className="space-y-2 text-sm text-stone-400">
-              <li>Grafted Kesar & Alphonso Mango</li>
-              <li>Taiwan Pink Guava Hybrids</li>
-              <li>Wilt-Resistant Desi Rootstocks</li>
-              <li>High-Density Meadow Planting</li>
-              <li>Contract Custom Graft Allocations</li>
-              <li>Acclimatized Fruit Saplings</li>
+              {specialties.map((item: string, idx: number) => (
+                <li key={idx} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500/70 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -116,25 +161,25 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
             </div>
 
             <a
-              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent('Hello Deep Root Farms, I am inquiring about sapling availability.')}`}
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(whatsappMsg)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold uppercase tracking-wider px-4 py-2.5 rounded-lg transition-transform active:scale-95 shadow-md mt-2"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Inquire via WhatsApp</span>
+              <span>{whatsappBtnText}</span>
             </a>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="border-t border-stone-800 pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-          <div>
-            &copy; {new Date().getFullYear()} {siteName}. All rights reserved. Public Catalogue Only — No Online Checkout.
-          </div>
-          <div className="text-amber-500/80 font-mono text-[11px]">
-            DEMO MODE: Sample data active. Never represents live commercial inventory.
-          </div>
+          <div>{copyrightText}</div>
+          {footerNotice && (
+            <div className="text-amber-500/90 font-mono text-[11px] bg-stone-950/80 px-3 py-1 rounded-md border border-stone-800">
+              {footerNotice}
+            </div>
+          )}
         </div>
       </div>
     </footer>
