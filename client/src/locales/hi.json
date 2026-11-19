@@ -61,8 +61,7 @@
     "resetPassword": "पासवर्ड रीसेट करें",
     "newPassword": "नया पासवर्ड",
     "confirmPassword": "पासवर्ड की पुष्टि करें",
-    "changePasswordRequired": "जारी रखने से पहले कृपया एक नया पासवर्ड सेट करें।",
-    "demoCredentials": "डेमो खाते: admin@nursery.local (Admin@12345), supervisor@nursery.local (Supervisor@12345), worker@nursery.local (Worker@12345)"
+    "changePasswordRequired": "जारी रखने से पहले कृपया एक नया पासवर्ड सेट करें।"
   },
   "wizards": {
     "step": "चरण",

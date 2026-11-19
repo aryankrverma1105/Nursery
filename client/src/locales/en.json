@@ -61,8 +61,7 @@
     "resetPassword": "Reset Password",
     "newPassword": "New Password",
     "confirmPassword": "Confirm Password",
-    "changePasswordRequired": "Please set a new password before continuing.",
-    "demoCredentials": "Demo accounts: admin@nursery.local (Admin@12345), supervisor@nursery.local (Supervisor@12345), worker@nursery.local (Worker@12345)"
+    "changePasswordRequired": "Please set a new password before continuing."
   },
   "wizards": {
     "step": "Step",

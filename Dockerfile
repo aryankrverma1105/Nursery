@@ -50,3 +50,4 @@ EXPOSE 1111
 
 # Start the combined server (serves API + SPA on port 1111)
 CMD ["npm", "run", "start", "--workspace=server"]
+

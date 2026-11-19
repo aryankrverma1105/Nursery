@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import SeoHead from '../components/SeoHead';
-import { Sprout, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, KeyRound } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, KeyRound } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -64,12 +64,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemo = (roleEmail: string, rolePass: string) => {
-    setEmail(roleEmail);
-    setPassword(rolePass);
-    setError('');
   };
 
   return (
@@ -158,7 +152,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@nursery.local"
+                  placeholder="name@nursery.com"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-earth-50/50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 text-sm focus:border-brand-500 shadow-sm"
                 />
               </div>
@@ -191,43 +185,6 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
         )}
-
-        {/* Demo Accounts Box for Rapid Testing */}
-        <div className="pt-4 border-t border-stone-200 dark:border-stone-800 space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
-            <span>Quick Demo Accounts (Tap to fill):</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => fillDemo('admin@nursery.local', 'Admin@12345')}
-              className="p-2 bg-stone-100 dark:bg-stone-800 hover:bg-brand-100 dark:hover:bg-brand-950 text-left rounded-lg text-xs transition-colors"
-            >
-              <div className="font-bold text-stone-800 dark:text-stone-200">Admin</div>
-              <div className="text-[10px] text-stone-500">Full Access</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemo('supervisor@nursery.local', 'Supervisor@12345')}
-              className="p-2 bg-stone-100 dark:bg-stone-800 hover:bg-brand-100 dark:hover:bg-brand-950 text-left rounded-lg text-xs transition-colors"
-            >
-              <div className="font-bold text-stone-800 dark:text-stone-200">Supervisor</div>
-              <div className="text-[10px] text-stone-500">Inventory/Sales</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemo('worker@nursery.local', 'Worker@12345')}
-              className="p-2 bg-stone-100 dark:bg-stone-800 hover:bg-brand-100 dark:hover:bg-brand-950 text-left rounded-lg text-xs transition-colors"
-            >
-              <div className="font-bold text-stone-800 dark:text-stone-200">Technician</div>
-              <div className="text-[10px] text-stone-500">Field Logs</div>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
