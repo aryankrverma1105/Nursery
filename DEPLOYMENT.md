@@ -125,7 +125,7 @@ server {
 
 ---
 
-## 4. Deploying Backend to Google Cloud Platform (GCP)
+## 4. Deploying Backend to Google Cloud Platform (GCP Cloud Run)
 
 1. **Cloud SQL:** Create a PostgreSQL 16 instance. Note the connection name (e.g. `project:region:nurcery-db`).
 2. **Secret Manager:** Store `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `DATABASE_URL`.
@@ -143,32 +143,125 @@ server {
 
 ---
 
-## 5. Google Cloud Compute Engine VM Setup (Direct Port 80 - No Port Numbers)
+## 5. Deploying to a Google Cloud Compute Engine VM Instance (Port 1111)
 
-### Step 1: Create VM in Google Cloud Console
-1. Navigate to **Compute Engine** > **VM instances** > **Create Instance**.
-2. Select **Ubuntu 22.04 LTS** or **Ubuntu 24.04 LTS** (Machine: `e2-medium` or `e2-small`).
-3. Under **Firewall**, check both:
-   - ✅ **Allow HTTP traffic**
-   - ✅ **Allow HTTPS traffic**
+To run the entire Nursery platform (Frontend + Backend + Database) on a single GCP VM on port **1111**:
+
+### STEP 1: Allow Port 1111 in Google Cloud Firewall (MANDATORY)
+
+By default, Google Cloud blocks all incoming traffic on port 1111. You must create an ingress firewall rule:
+
+#### Option A: In the Google Cloud Console UI
+1. In GCP Console, open navigation menu -> **VPC network** -> **Firewall**.
+2. Click **+ CREATE FIREWALL RULE**.
+3. Fill in the following:
+   - **Name:** `allow-nursery-1111`
+   - **Network:** `default`
+   - **Direction of traffic:** `Ingress`
+   - **Action on match:** `Allow`
+   - **Targets:** `All instances in the network` (or specify your VM's network tag)
+   - **Source IPv4 ranges:** `0.0.0.0/0`
+   - **Protocols and ports:** Check **Specified protocols and ports** -> check **tcp** -> enter `1111`.
 4. Click **Create**.
-5. Once created, click the **SSH** button next to your VM instance in the Google Cloud Console.
 
-### Step 2: One-Command Automated Setup
-Inside your VM SSH terminal, run:
-
+#### Option B: Using Google Cloud Shell / gcloud CLI
+Run this single command in Google Cloud Shell or on your terminal:
 ```bash
-git clone https://github.com/aryankrverma1105/Nursery.git /var/www/nurcery
-cd /var/www/nurcery
-chmod +x scripts/setup-gcp-vm.sh
-bash scripts/setup-gcp-vm.sh
+gcloud compute firewall-rules create allow-nursery-1111 \
+    --direction=INGRESS \
+    --priority=1000 \
+    --network=default \
+    --action=ALLOW \
+    --rules=tcp:1111 \
+    --source-ranges=0.0.0.0/0 \
+    --target-tags=nursery-server
 ```
 
-### Step 3: Access Your Website
-Open your browser and visit:
-```
-http://<YOUR_VM_EXTERNAL_IP>
-```
-No port number is required! Nginx automatically handles port 80 and proxies backend API and static uploads seamlessly.
+---
+
+### STEP 2: Deploy on the VM (Choose Method A or Method B)
+
+Connect to your GCP VM instance via SSH (click the **SSH** button next to your VM in the GCP Console Compute Engine list).
+
+#### METHOD A: Using Docker (Recommended - Fastest & Cleanest)
+
+1. **Install Docker** (if not already installed on the VM):
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y docker.io git
+   sudo systemctl enable --now docker
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+2. **Clone Repository & Build Docker Image**:
+   ```bash
+   git clone https://github.com/aryankrverma1105/Nursery.git
+   cd Nursery
+   docker build -t nursery-app .
+   ```
+
+3. **Run Container on Port 1111**:
+   ```bash
+   docker run -d \
+     --name nursery-prod \
+     --restart always \
+     -p 1111:1111 \
+     -v nursery_uploads:/app/uploads \
+     -e PORT=1111 \
+     -e NODE_ENV=production \
+     nursery-app
+   ```
+
+4. **Verify container is running**:
+   ```bash
+   docker ps
+   docker logs nursery-prod
+   ```
+
+---
+
+#### METHOD B: Direct Deployment with Node.js & PM2 (Without Docker)
+
+1. **Install Node.js 22 LTS & Git**:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y curl git
+   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   sudo npm install -g pm2
+   ```
+
+2. **Clone & Install Dependencies**:
+   ```bash
+   git clone https://github.com/aryankrverma1105/Nursery.git
+   cd Nursery
+   npm install
+   ```
+
+3. **Build Frontend and Backend**:
+   ```bash
+   npm run build
+   ```
+
+4. **Start Application on Port 1111 with PM2**:
+   ```bash
+   PORT=1111 NODE_ENV=production pm2 start npm --name "nursery-app" -- start
+   pm2 save
+   pm2 startup
+   ```
+
+---
+
+### STEP 3: Access Your Live Website
+
+1. Go to **Google Cloud Console** -> **Compute Engine** -> **VM instances**.
+2. Find your instance and copy its **External IP** (e.g. `34.123.45.67`).
+3. Open your browser and go to:
+   ```
+   http://<YOUR_VM_EXTERNAL_IP>:1111
+   ```
+   Example: `http://34.123.45.67:1111`
+4. Both the public catalogue website and the `/app` staff portal are live on port 1111!
 
 

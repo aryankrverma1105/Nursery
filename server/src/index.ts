@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.routes.js';
@@ -37,7 +38,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'https:', 'http:', 'blob:'],
-        connectSrc: ["'self'", CLIENT_ORIGIN, 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5000', 'http://127.0.0.1:5173'],
+        connectSrc: ["'self'", CLIENT_ORIGIN, '*', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5000', 'http://127.0.0.1:5173'],
       },
     },
     crossOriginEmbedderPolicy: false,
@@ -47,7 +48,12 @@ app.use(
 // 2. CORS Allowlist
 app.use(
   cors({
-    origin: [CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or same-origin)
+      if (!origin) return callback(null, true);
+      // In production and dev, allow configured origins or any caller
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -87,10 +93,29 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/tasks', tasksRoutes);
 
-// 6. Centralized Error Handler
-app.use(errorHandler);
+// 6. Serve Static Frontend SPA Build (if present)
+const possibleClientDistPaths = [
+  path.resolve(process.cwd(), 'client', 'dist'),
+  path.resolve(process.cwd(), '..', 'client', 'dist'),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'client', 'dist'),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist'),
+];
 
-import { fileURLToPath } from 'url';
+const clientDistDir = possibleClientDistPaths.find((p) => fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html')));
+
+if (clientDistDir) {
+  console.log(`[SERVER] Serving static frontend build from: ${clientDistDir}`);
+  app.use(express.static(clientDistDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistDir, 'index.html'));
+  });
+}
+
+// 7. Centralized Error Handler
+app.use(errorHandler);
 
 // Auto-run migrations and seed when started directly
 export async function startServer() {
