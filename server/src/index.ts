@@ -14,6 +14,8 @@ import inventoryRoutes from './routes/inventory.routes.js';
 import salesRoutes from './routes/sales.routes.js';
 import traceRoutes from './routes/trace.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
+import usersRoutes from './routes/users.routes.js';
+import tasksRoutes from './routes/tasks.routes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { up as runMigrations } from './db/migrate.js';
 import { seed } from './db/seed.js';
@@ -82,6 +84,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/trace', traceRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/tasks', tasksRoutes);
 
 // 6. Centralized Error Handler
 app.use(errorHandler);

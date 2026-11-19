@@ -23,7 +23,9 @@ import {
   ShieldAlert,
   Users,
   FileSpreadsheet,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ListTodo,
+  UserCog
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -54,6 +56,7 @@ export const Sidebar: React.FC = () => {
     { to: '/app/selling', label: t('workflow.selling', '7. Selling'), icon: ShoppingBag },
     { to: '/app/trace', label: t('workflow.traceability', '8. Traceability'), icon: Search },
     { to: '/app/reports', label: t('workflow.reports', '9. Reports'), icon: FileText },
+    { to: '/app/tasks', label: t('workflow.tasks', '10. Task Assignments'), icon: ListTodo },
   ];
 
   return (
@@ -176,6 +179,18 @@ export const Sidebar: React.FC = () => {
               >
                 <Settings className="w-5 h-5 text-brand-400" />
                 <span>Site & ID Settings</span>
+              </NavLink>
+
+              <NavLink
+                to="/app/users"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    isActive ? 'bg-brand-800 text-white' : 'hover:bg-stone-800 text-stone-300'
+                  }`
+                }
+              >
+                <UserCog className="w-5 h-5 text-brand-400" />
+                <span>Staff & Access Control</span>
               </NavLink>
             </div>
           )}

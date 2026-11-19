@@ -777,6 +777,49 @@ export async function seed(isSampleData: boolean = true) {
         updated_at: db.fn.now(),
       });
     }
+
+    // L. Sample Tasks Assigned by Admin to Supervisor & Worker
+    if (await db.schema.hasTable('tasks')) {
+      const adminUser = await db('users').where({ role: 'ADMIN' }).first();
+      const supUser = await db('users').where({ role: 'SUPERVISOR' }).first();
+      const workerUser = await db('users').whereIn('role', ['WORKER', 'USER']).first();
+
+      if (adminUser && supUser) {
+        const existingSupTask = await db('tasks').where({ title: 'Audit Curing Chamber 1 Humidity & Temperature' }).first();
+        if (!existingSupTask) {
+          await db('tasks').insert({
+            title: 'Audit Curing Chamber 1 Humidity & Temperature',
+            description: 'Verify 85-90% relative humidity is maintained for the newly grafted mango saplings.',
+            assigned_to_user_id: supUser.id,
+            created_by_user_id: adminUser.id,
+            priority: 'HIGH',
+            status: 'IN_PROGRESS',
+            stage: 'CURING',
+            due_date: '2026-03-15',
+            created_at: db.fn.now(),
+            updated_at: db.fn.now(),
+          });
+        }
+      }
+
+      if (adminUser && workerUser) {
+        const existingWorkerTask = await db('tasks').where({ title: 'Inspect Tray Bay 3 Sowing Viability' }).first();
+        if (!existingWorkerTask) {
+          await db('tasks').insert({
+            title: 'Inspect Tray Bay 3 Sowing Viability',
+            description: 'Check germination sprout health and record any seedling loss or damping off in Tray Bay 3.',
+            assigned_to_user_id: workerUser.id,
+            created_by_user_id: adminUser.id,
+            priority: 'MEDIUM',
+            status: 'PENDING',
+            stage: 'GROWTH',
+            due_date: '2026-03-10',
+            created_at: db.fn.now(),
+            updated_at: db.fn.now(),
+          });
+        }
+      }
+    }
   }
 
   console.log('[SEED] Database seeding complete.');

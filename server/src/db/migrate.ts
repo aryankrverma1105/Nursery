@@ -549,6 +549,44 @@ export async function up(): Promise<void> {
     });
   }
 
+  // 32. Additional user attributes (phone, designation)
+  if (await db.schema.hasTable('users')) {
+    if (!(await db.schema.hasColumn('users', 'phone'))) {
+      await db.schema.table('users', (table) => {
+        table.string('phone').nullable();
+      });
+    }
+    if (!(await db.schema.hasColumn('users', 'designation'))) {
+      await db.schema.table('users', (table) => {
+        table.string('designation').nullable();
+      });
+    }
+  }
+
+  // 33. Tasks Table (Admin/Supervisor Task Delegation & Assignment)
+  if (!(await db.schema.hasTable('tasks'))) {
+    await db.schema.createTable('tasks', (table) => {
+      table.increments('id').primary();
+      table.string('title').notNullable();
+      table.text('description').nullable();
+      table.integer('assigned_to_user_id').references('id').inTable('users').onDelete('CASCADE');
+      table.integer('created_by_user_id').references('id').inTable('users').onDelete('SET NULL');
+      table.string('priority').defaultTo('MEDIUM'); // LOW, MEDIUM, HIGH, URGENT
+      table.string('status').defaultTo('PENDING'); // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+      table.string('stage').defaultTo('GENERAL'); // SOWING, GROWTH, GRAFTING, CURING, READY_FOR_SALE, SELLING, GENERAL
+      table.date('due_date').nullable();
+      table.timestamp('completed_at').nullable();
+      table.text('completion_notes').nullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
+      table.timestamp('updated_at').defaultTo(db.fn.now());
+    });
+    await db.schema.table('tasks', (table) => {
+      table.index(['assigned_to_user_id']);
+      table.index(['status']);
+      table.index(['priority']);
+    });
+  }
+
   console.log('[MIGRATION] Database schema migration completed successfully.');
 }
 

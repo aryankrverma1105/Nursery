@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../context/AuthContext';
 import {
   Sprout,
   Activity,
@@ -16,7 +17,10 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
-  FileText
+  FileText,
+  ListTodo,
+  UserCog,
+  Clock
 } from 'lucide-react';
 
 interface DashboardMetrics {
@@ -40,9 +44,20 @@ interface DashboardMetrics {
   };
 }
 
+interface TaskMetrics {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  urgent: number;
+  myPending: number;
+}
+
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [taskMetrics, setTaskMetrics] = useState<TaskMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +65,14 @@ export const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.get('/api/inventory/dashboard-metrics');
-      setMetrics(res.data.metrics);
+      const [invRes, taskRes] = await Promise.all([
+        axios.get('/api/inventory/dashboard-metrics'),
+        axios.get('/api/tasks/metrics').catch(() => ({ data: { metrics: null } }))
+      ]);
+      setMetrics(invRes.data.metrics);
+      if (taskRes?.data?.metrics) {
+        setTaskMetrics(taskRes.data.metrics);
+      }
     } catch (err: any) {
       console.error('Failed to load dashboard metrics:', err);
       setError('Could not load farm metrics. Showing cached figures.');
@@ -320,6 +341,64 @@ export const DashboardPage: React.FC = () => {
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-purple-100/70 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 flex items-center justify-center flex-shrink-0">
               <ShoppingBag className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2.2]" />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* STAFF TASK & ACCESS MANAGEMENT BANNER */}
+      <div className="bg-gradient-to-r from-stone-900 to-stone-850 text-white p-6 sm:p-7 rounded-3xl border border-stone-800 shadow-md">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                <ListTodo className="w-5 h-5" />
+              </span>
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-400">
+                Staff Operations & Task Hub
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Daily Operational Tasks & Assignments
+            </h2>
+            <p className="text-sm text-stone-300 max-w-2xl font-medium">
+              Admin &amp; Supervisors assign nursery jobs with stages and priorities; Supervisors and Workers execute and update completion logs in real time.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {taskMetrics && (
+              <div className="flex items-center gap-2 bg-stone-800/90 px-4 py-2.5 rounded-2xl border border-stone-700 text-stone-200 text-sm font-bold">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>
+                  {user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
+                    ? `${taskMetrics.pending + taskMetrics.inProgress} Active Tasks`
+                    : `${taskMetrics.myPending} Tasks Assigned to You`}
+                </span>
+                {taskMetrics.urgent > 0 && (
+                  <span className="ml-1 px-2 py-0.5 rounded-md bg-rose-500 text-white text-xs font-black">
+                    {taskMetrics.urgent} Urgent
+                  </span>
+                )}
+              </div>
+            )}
+
+            <Link
+              to="/app/tasks"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black text-sm sm:text-base transition-all shadow-md"
+            >
+              <ListTodo className="w-5 h-5" />
+              <span>Open Task Hub</span>
+            </Link>
+
+            {user?.role === 'ADMIN' && (
+              <Link
+                to="/app/users"
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-stone-700 hover:bg-stone-600 active:scale-95 text-white font-black text-sm sm:text-base transition-all shadow-md border border-stone-600"
+              >
+                <UserCog className="w-5 h-5 text-brand-300" />
+                <span>Staff & Access</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -31,6 +31,8 @@ import SellingPage from './app/pages/SellingPage';
 import TraceabilityPage from './app/pages/TraceabilityPage';
 import ReportsPage from './app/pages/ReportsPage';
 import MoreHubPage from './app/pages/MoreHubPage';
+import TasksPage from './app/pages/TasksPage';
+import UsersManagementPage from './app/pages/UsersManagementPage';
 
 // Admin CMS Pages
 import CmsSectionsPage from './app/pages/cms/CmsSectionsPage';
@@ -254,6 +256,26 @@ export const App: React.FC = () => {
             <ProtectedRoute allowedRoles={['ADMIN', 'SUPERVISOR']}>
               <PrivateLayout>
                 <ReportsPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/tasks"
+          element={
+            <ProtectedRoute>
+              <PrivateLayout>
+                <TasksPage />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/users"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <PrivateLayout>
+                <UsersManagementPage />
               </PrivateLayout>
             </ProtectedRoute>
           }

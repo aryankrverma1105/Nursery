@@ -6,7 +6,7 @@ import { db } from '../db/connection.js';
 export interface AuthenticatedUser {
   id: number;
   email: string;
-  role: 'ADMIN' | 'SUPERVISOR' | 'USER';
+  role: 'ADMIN' | 'SUPERVISOR' | 'WORKER' | 'USER' | string;
   fullName: string;
   permissions: string[];
   assignedRecords: number[];
@@ -91,7 +91,9 @@ export function requireRole(allowedRoles: string[]) {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = req.user.role === 'USER' ? 'WORKER' : req.user.role;
+    const normalizedAllowed = allowedRoles.flatMap((r) => (r === 'WORKER' ? ['WORKER', 'USER'] : [r]));
+    if (!normalizedAllowed.includes(req.user.role) && !normalizedAllowed.includes(userRole)) {
       return res.status(403).json({ error: 'Access denied: Insufficient role permissions.' });
     }
     next();
